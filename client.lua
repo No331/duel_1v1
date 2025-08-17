@@ -10,6 +10,9 @@ local selectedWeapon = nil
 -- Point d'interaction
 local interactionPoint = vector3(256.3, -776.82, 30.88)
 
+-- Point d'interaction
+local interactionPoint = vector3(256.3, -776.82, 30.88)
+
 -- Coordonnées des arènes avec zones limitées (50m de rayon)
 local arenas = {
     aeroport = {
@@ -38,35 +41,35 @@ local arenas = {
 Citizen.CreateThread(function()
     print("^2[DUEL] Thread marker démarré^7")
     while true do
-        local sleep = 1000
-        local playerPed = PlayerPedId()
-        local playerCoords = GetEntityCoords(playerPed)
-        local distance = #(playerCoords - interactionPoint)
+        Citizen.Wait(0)
         
-        if distance < 50.0 then
-            sleep = 0
-            -- Marker bleu
-            DrawMarker(1, interactionPoint.x, interactionPoint.y, interactionPoint.z - 1.0, 
-                      0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
-                      3.0, 3.0, 1.0, 
-                      0, 150, 255, 200, 
-                      false, true, 2, false, nil, nil, false)
+        if not inDuel then
+            local playerPed = PlayerPedId()
+            local playerCoords = GetEntityCoords(playerPed)
+            local distance = #(playerCoords - interactionPoint)
             
-            if distance < 3.0 then
-                -- Texte d'aide
-                SetTextComponentFormat("STRING")
-                AddTextComponentString("Appuyez sur ~INPUT_CONTEXT~ pour ouvrir le menu de duel")
-                DisplayHelpTextFromStringLabel(0, 0, 1, -1)
+            if distance < 50.0 then
+                -- Marker bleu
+                DrawMarker(1, interactionPoint.x, interactionPoint.y, interactionPoint.z - 1.0, 
+                          0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                          3.0, 3.0, 1.0, 
+                          0, 150, 255, 200, 
+                          false, true, 2, false, nil, nil, false)
                 
-                -- Vérifier si E est pressé
-                if IsControlJustPressed(1, 38) and not isMenuOpen then
-                    print("^3[DUEL] Touche E pressée^7")
-                    openDuelMenu()
+                if distance < 3.0 then
+                    -- Texte d'aide
+                    SetTextComponentFormat("STRING")
+                    AddTextComponentString("Appuyez sur ~INPUT_CONTEXT~ pour ouvrir le menu de duel")
+                    DisplayHelpTextFromStringLabel(0, 0, 1, -1)
+                    
+                    -- Vérifier si E est pressé
+                    if IsControlJustPressed(1, 38) and not isMenuOpen then
+                        print("^3[DUEL] Touche E pressée^7")
+                        openDuelMenu()
+                    end
                 end
             end
         end
-        
-        Citizen.Wait(sleep)
     end
 end)
 
