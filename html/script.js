@@ -218,14 +218,22 @@ document.addEventListener('keydown', function(event) {
 function updateAvailableArenas(arenas) {
     console.log('[DUEL] Mise à jour des arènes disponibles:', arenas);
     availableArenas = arenas || [];
+    
+    // Ajouter les noms des créateurs pour l'affichage
+    availableArenas.forEach(arena => {
+        if (!arena.creatorName) {
+            arena.creatorName = `Joueur ${arena.creator}`;
+        }
+    });
+    
     updateJoinButton();
 }
 
 function showArenaList() {
     console.log('[DUEL] Affichage de la liste des arènes');
     
-    // Filtrer les arènes par arme sélectionnée
-    const compatibleArenas = availableArenas.filter(arena => arena.weapon === selectedWeapon);
+    // Afficher TOUTES les arènes disponibles (pas de filtre par arme)
+    const compatibleArenas = availableArenas;
     
     const arenaList = document.getElementById('arenaList');
     const noArenas = document.getElementById('noArenas');
@@ -258,7 +266,7 @@ function showArenaList() {
             `;
             
             arenaItem.addEventListener('click', function() {
-                joinSpecificArena(arena.id);
+                joinSpecificArena(arena.id, arena.weapon);
             });
             
             arenaList.appendChild(arenaItem);
@@ -274,14 +282,14 @@ function hideArenaList() {
     modal.classList.add('hidden');
 }
 
-function joinSpecificArena(arenaId) {
+function joinSpecificArena(arenaId, arenaWeapon) {
     console.log('[DUEL] Rejoindre l\'arène spécifique:', arenaId);
     
     hideArenaList();
     
     const payload = {
         arenaId: arenaId,
-        weapon: selectedWeapon
+        weapon: arenaWeapon
     };
     
     fetch(`https://duel_1v1/joinSpecificArena`, {

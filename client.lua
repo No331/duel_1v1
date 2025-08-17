@@ -100,10 +100,10 @@ Citizen.CreateThread(function()
                     })
                 end
                 
-                -- Afficher le message pour quitter
-                SetTextComponentFormat("STRING")
-                AddTextComponentString("Appuyez sur ~INPUT_CONTEXT~ pour quitter le duel")
-                DisplayHelpTextFromStringLabel(0, 0, 1, -1)
+                -- Afficher le message pour quitter (permanent, sans clignotement)
+                BeginTextCommandDisplayHelp("STRING")
+                AddTextComponentSubstringPlayerName("Appuyez sur ~INPUT_CONTEXT~ pour quitter le duel")
+                EndTextCommandDisplayHelp(0, false, false, -1)
             end
         end
         
@@ -249,6 +249,9 @@ RegisterNUICallback('createArena', function(data, cb)
         return
     end
     
+    -- Mettre à jour l'arme sélectionnée pour le respawn
+    selectedWeapon = data.weapon
+    
     print("^2[DUEL] Fermeture du menu^7")
     closeDuelMenu()
     
@@ -389,12 +392,55 @@ AddEventHandler('duel:opponentJoined', function(opponentName)
         args = {"[DUEL]", opponentName .. " a rejoint l'arène ! Le duel commence dans 3 secondes..."}
     })
     
-    -- Compte à rebours
+    -- Compte à rebours avec affichage à l'écran
+    TriggerEvent('chat:addMessage', {
+        color = {255, 165, 0},
+        args = {"[DUEL]", "3..."}
+    })
+    
+    -- Affichage grand écran pour le compte à rebours
+    Citizen.CreateThread(function()
+        -- 3
+        SetTextFont(0)
+        SetTextProportional(1)
+        SetTextScale(3.0, 3.0)
+        SetTextColour(255, 255, 255, 255)
+        SetTextDropshadow(0, 0, 0, 0, 255)
+        SetTextEdge(2, 0, 0, 0, 150)
+        SetTextCentre(true)
+        
+        local startTime = GetGameTimer()
+        while GetGameTimer() - startTime < 1000 do
+            SetTextEntry("STRING")
+            AddTextComponentString("3")
+            DrawText(0.5, 0.4)
+            Citizen.Wait(0)
+        end
+    end)
+    
     Citizen.SetTimeout(1000, function()
         TriggerEvent('chat:addMessage', {
             color = {255, 165, 0},
             args = {"[DUEL]", "2..."}
         })
+        
+        -- Affichage grand écran pour 2
+        Citizen.CreateThread(function()
+            local startTime = GetGameTimer()
+            while GetGameTimer() - startTime < 1000 do
+                SetTextFont(0)
+                SetTextProportional(1)
+                SetTextScale(3.0, 3.0)
+                SetTextColour(255, 255, 255, 255)
+                SetTextDropshadow(0, 0, 0, 0, 255)
+                SetTextEdge(2, 0, 0, 0, 150)
+                SetTextCentre(true)
+                SetTextEntry("STRING")
+                AddTextComponentString("2")
+                DrawText(0.5, 0.4)
+                Citizen.Wait(0)
+            end
+        end)
     end)
     
     Citizen.SetTimeout(2000, function()
@@ -402,107 +448,118 @@ AddEventHandler('duel:opponentJoined', function(opponentName)
             color = {255, 165, 0},
             args = {"[DUEL]", "1..."}
         })
+        
+        -- Affichage grand écran pour 1
+        Citizen.CreateThread(function()
+            local startTime = GetGameTimer()
+            while GetGameTimer() - startTime < 1000 do
+                SetTextFont(0)
+                SetTextProportional(1)
+                SetTextScale(3.0, 3.0)
+                SetTextColour(255, 255, 255, 255)
+                SetTextDropshadow(0, 0, 0, 0, 255)
+                SetTextEdge(2, 0, 0, 0, 150)
+                SetTextCentre(true)
+                SetTextEntry("STRING")
+                AddTextComponentString("1")
+                DrawText(0.5, 0.4)
+                Citizen.Wait(0)
+            end
+        end)
     end)
     
     Citizen.SetTimeout(3000, function()
         TriggerEvent('chat:addMessage', {
             color = {255, 0, 0},
-            args = {"[DUEL]", "COMBAT !"}
+            args = {"[DUEL]", "GO !"}
+        })
+        
+        -- Affichage grand écran pour GO
+        Citizen.CreateThread(function()
+            local startTime = GetGameTimer()
+            while GetGameTimer() - startTime < 1500 do
+                SetTextFont(0)
+                SetTextProportional(1)
+                SetTextScale(4.0, 4.0)
+                SetTextColour(255, 0, 0, 255)
+                SetTextDropshadow(0, 0, 0, 0, 255)
+                SetTextEdge(2, 0, 0, 0, 150)
+                SetTextCentre(true)
+                SetTextEntry("STRING")
+                AddTextComponentString("GO !")
+                DrawText(0.5, 0.4)
+                Citizen.Wait(0)
+            end
         })
     end)
 end)
 
 -- Event pour gérer la mort et le respawn
-AddEventHandler('baseevents:onPlayerDied', function(killerType, coords)
-    if inDuel and currentArena then
-        print("^1[DUEL] Joueur mort en duel, respawn dans 3 secondes^7")
-        
-        Citizen.SetTimeout(3000, function()
-            local playerPed = PlayerPedId()
-            local arena = arenas[currentArena]
-            
-            if arena then
-                -- Respawn au centre de l'arène
-                local spawnX = arena.center.x + math.random(-10, 10)
-                local spawnY = arena.center.y + math.random(-10, 10)
-                local spawnZ = arena.center.z
-                
-                -- Ressusciter le joueur
-                local playerPed = PlayerPedId()
-                ReviveInjuredPed(playerPed)
-                SetEntityCoords(playerPed, spawnX, spawnY, spawnZ, false, false, false, true)
-                SetEntityHealth(playerPed, 200)
-                ClearPedBloodDamage(playerPed)
-                
-                -- Redonner l'arme
-                local weapons = {
-                    pistol = "WEAPON_PISTOL",
-                    combat_pistol = "WEAPON_COMBATPISTOL",
-                    heavy_pistol = "WEAPON_HEAVYPISTOL",
-                    vintage_pistol = "WEAPON_VINTAGEPISTOL"
-                }
-                
-                local weaponHash = GetHashKey(weapons[selectedWeapon] or weapons.pistol)
-                GiveWeaponToPed(playerPed, weaponHash, 250, false, true)
-                
-                print("^2[DUEL] Joueur respawné dans l'arène^7")
-                
-                TriggerEvent('chat:addMessage', {
-                    color = {255, 165, 0},
-                    multiline = true,
-                    args = {"[DUEL]", "Vous avez été éliminé ! Respawn dans l'arène..."}
-                })
-            end
-        end)
-    end
-end)
-
--- Event alternatif pour la mort (au cas où baseevents ne fonctionne pas)
+-- Thread pour gérer la mort et le respawn automatique
 Citizen.CreateThread(function()
+    local wasAlive = true
+    
     while true do
         if inDuel then
             local playerPed = PlayerPedId()
+            local isAlive = not IsEntityDead(playerPed)
             
-            if IsEntityDead(playerPed) then
-                print("^1[DUEL] Détection de mort en duel^7")
+            -- Détecter le changement d'état (vivant -> mort)
+            if wasAlive and not isAlive then
+                print("^1[DUEL] Joueur mort détecté, respawn immédiat^7")
                 
-                Citizen.SetTimeout(3000, function()
-                    if inDuel and currentArena then
-                        local arena = arenas[currentArena]
+                -- Respawn immédiat
+                if currentArena then
+                    local arena = arenas[currentArena]
+                    
+                    if arena then
+                        -- Position de respawn aléatoire dans l'arène
+                        local spawnX = arena.center.x + math.random(-15, 15)
+                        local spawnY = arena.center.y + math.random(-15, 15)
+                        local spawnZ = arena.center.z
                         
-                        if arena then
-                            -- Respawn au centre de l'arène
-                            local spawnX = arena.center.x + math.random(-10, 10)
-                            local spawnY = arena.center.y + math.random(-10, 10)
-                            local spawnZ = arena.center.z
-                            
-                            -- Ressusciter le joueur
-                            local newPed = PlayerPedId()
-                            ReviveInjuredPed(newPed)
-                            SetEntityCoords(newPed, spawnX, spawnY, spawnZ, false, false, false, true)
-                            SetEntityHealth(newPed, 200)
-                            ClearPedBloodDamage(newPed)
-                            
-                            -- Redonner l'arme
-                            local weapons = {
-                                pistol = "WEAPON_PISTOL",
-                                combat_pistol = "WEAPON_COMBATPISTOL",
-                                heavy_pistol = "WEAPON_HEAVYPISTOL",
-                                vintage_pistol = "WEAPON_VINTAGEPISTOL"
-                            }
-                            
-                            local weaponHash = GetHashKey(weapons[selectedWeapon] or weapons.pistol)
-                            GiveWeaponToPed(newPed, weaponHash, 250, false, true)
-                            
-                            print("^2[DUEL] Joueur respawné dans l'arène (thread alternatif)^7")
-                        end
+                        -- Ressusciter immédiatement
+                        local newPed = PlayerPedId()
+                        
+                        -- Forcer la résurrection
+                        NetworkResurrectLocalPlayer(spawnX, spawnY, spawnZ, 0.0, true, false)
+                        
+                        -- Attendre que le joueur soit respawné
+                        Citizen.Wait(100)
+                        
+                        newPed = PlayerPedId()
+                        SetEntityCoords(newPed, spawnX, spawnY, spawnZ, false, false, false, true)
+                        SetEntityHealth(newPed, 200)
+                        SetPedArmour(newPed, 0)
+                        ClearPedBloodDamage(newPed)
+                        
+                        -- Redonner l'arme avec les bonnes munitions
+                        local weapons = {
+                            pistol = "WEAPON_PISTOL",
+                            combat_pistol = "WEAPON_COMBATPISTOL",
+                            heavy_pistol = "WEAPON_HEAVYPISTOL",
+                            vintage_pistol = "WEAPON_VINTAGEPISTOL"
+                        }
+                        
+                        RemoveAllPedWeapons(newPed, true)
+                        local weaponHash = GetHashKey(weapons[selectedWeapon] or weapons.pistol)
+                        GiveWeaponToPed(newPed, weaponHash, 250, false, true)
+                        SetCurrentPedWeapon(newPed, weaponHash, true)
+                        
+                        print("^2[DUEL] Joueur respawné immédiatement dans l'arène^7")
+                        
+                        TriggerEvent('chat:addMessage', {
+                            color = {255, 165, 0},
+                            multiline = true,
+                            args = {"[DUEL]", "Respawn dans l'arène !"}
+                        })
                     end
-                end)
-                
-                Citizen.Wait(5000) -- Attendre 5 secondes avant de revérifier
+                end
             end
+            
+            wasAlive = isAlive
         end
         
-        Citizen.Wait(1000)
+        Citizen.Wait(100) -- Vérifier toutes les 100ms pour une détection rapide
     end
 end)

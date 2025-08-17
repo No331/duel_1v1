@@ -52,8 +52,11 @@ function getAvailableArenas()
     local available = {}
     for instanceId, instance in pairs(instances) do
         if instance.status == "waiting" and #instance.players < instance.maxPlayers then
+            local creatorName = GetPlayerName(instance.creator) or ("Joueur " .. instance.creator)
             table.insert(available, {
                 id = instanceId,
+                creator = instance.creator,
+                creatorName = creatorName,
                 arena = instance.arena,
                 weapon = instance.weapon,
                 players = #instance.players,
