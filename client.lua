@@ -42,9 +42,8 @@ Citizen.CreateThread(function()
         local playerCoords = GetEntityCoords(playerPed)
         local distance = #(playerCoords - interactionPoint)
         
-        -- Toujours afficher le marker si pas en duel
+        -- Afficher le marker si pas en duel et proche
         if not inDuel and distance < 100.0 then
-            -- Marker bleu
             DrawMarker(1, interactionPoint.x, interactionPoint.y, interactionPoint.z - 1.0, 
                       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
                       3.0, 3.0, 1.0, 
@@ -54,12 +53,10 @@ Citizen.CreateThread(function()
         
         -- Interaction proche
         if not inDuel and distance < 3.0 then
-            -- Texte d'aide
             SetTextComponentFormat("STRING")
             AddTextComponentString("Appuyez sur ~INPUT_CONTEXT~ pour ouvrir le menu de duel")
             DisplayHelpTextFromStringLabel(0, 0, 1, -1)
             
-            -- Vérifier si E est pressé
             if IsControlJustPressed(1, 38) and not isMenuOpen then
                 print("^3[DUEL] Touche E pressée^7")
                 openDuelMenu()
@@ -81,7 +78,7 @@ Citizen.CreateThread(function()
             if arena then
                 local distance = #(playerCoords - arena.center)
                 
-                -- Dessiner le cercle de limite (pas trop voyant)
+                -- Dessiner le cercle de limite
                 DrawMarker(1, arena.center.x, arena.center.y, arena.center.z - 1.0,
                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                           arena.radius * 2, arena.radius * 2, 1.0,
@@ -93,7 +90,6 @@ Citizen.CreateThread(function()
                     print("^1[DUEL] Joueur hors limite, téléportation au centre^7")
                     SetEntityCoords(playerPed, arena.center.x, arena.center.y, arena.center.z, false, false, false, true)
                     
-                    -- Message d'avertissement
                     TriggerEvent('chat:addMessage', {
                         color = {255, 0, 0},
                         multiline = true,
@@ -101,14 +97,14 @@ Citizen.CreateThread(function()
                     })
                 end
                 
-                -- Afficher le message pour quitter (permanent, sans clignotement)
+                -- Afficher le message pour quitter (permanent)
                 BeginTextCommandDisplayHelp("STRING")
                 AddTextComponentSubstringPlayerName("Appuyez sur ~INPUT_CONTEXT~ pour quitter le duel")
                 EndTextCommandDisplayHelp(0, false, false, -1)
             end
         end
         
-        Citizen.Wait(500) -- Vérifier toutes les 500ms
+        Citizen.Wait(500)
     end
 end)
 
@@ -116,7 +112,7 @@ end)
 Citizen.CreateThread(function()
     while true do
         if inDuel then
-            if IsControlJustPressed(1, 38) then -- E key
+            if IsControlJustPressed(1, 38) then
                 print("^3[DUEL] Touche E pressée pour quitter le duel^7")
                 quitDuel()
             end
@@ -125,17 +121,81 @@ Citizen.CreateThread(function()
     end
 end)
 
+-- Thread pour gérer la mort et le respawn automatique
+Citizen.CreateThread(function()
+    local wasAlive = true
+    
+    while true do
+        if inDuel then
+            local playerPed = PlayerPedId()
+            local isAlive = not IsEntityDead(playerPed)
+            
+            -- Détecter le changement d'état (vivant -> mort)
+            if wasAlive and not isAlive then
+                print("^1[DUEL] Joueur mort détecté, respawn immédiat^7")
+                
+                -- Respawn immédiat
+                if currentArena then
+                    local arena = arenas[currentArena]
+                    
+                    if arena then
+                        -- Position de respawn aléatoire dans l'arène
+                        local spawnX = arena.center.x + math.random(-15, 15)
+                        local spawnY = arena.center.y + math.random(-15, 15)
+                        local spawnZ = arena.center.z
+                        
+                        -- Forcer la résurrection
+                        NetworkResurrectLocalPlayer(spawnX, spawnY, spawnZ, 0.0, true, false)
+                        
+                        -- Attendre que le joueur soit respawné
+                        Citizen.Wait(100)
+                        
+                        local newPed = PlayerPedId()
+                        SetEntityCoords(newPed, spawnX, spawnY, spawnZ, false, false, false, true)
+                        SetEntityHealth(newPed, 200)
+                        SetPedArmour(newPed, 0)
+                        ClearPedBloodDamage(newPed)
+                        
+                        -- Redonner l'arme avec les bonnes munitions
+                        local weapons = {
+                            pistol = "WEAPON_PISTOL",
+                            combat_pistol = "WEAPON_COMBATPISTOL",
+                            heavy_pistol = "WEAPON_HEAVYPISTOL",
+                            vintage_pistol = "WEAPON_VINTAGEPISTOL"
+                        }
+                        
+                        RemoveAllPedWeapons(newPed, true)
+                        local weaponHash = GetHashKey(weapons[selectedWeapon] or weapons.pistol)
+                        GiveWeaponToPed(newPed, weaponHash, 250, false, true)
+                        SetCurrentPedWeapon(newPed, weaponHash, true)
+                        
+                        print("^2[DUEL] Joueur respawné immédiatement dans l'arène^7")
+                        
+                        TriggerEvent('chat:addMessage', {
+                            color = {255, 165, 0},
+                            multiline = true,
+                            args = {"[DUEL]", "Respawn dans l'arène !"}
+                        })
+                    end
+                end
+            end
+            
+            wasAlive = isAlive
+        end
+        
+        Citizen.Wait(100)
+    end
+end)
+
 -- Fonction pour ouvrir le menu
 function openDuelMenu()
     print("^3[DUEL] Ouverture du menu^7")
-    -- Sauvegarder la position actuelle
     local playerPed = PlayerPedId()
     originalCoords = GetEntityCoords(playerPed)
     
     isMenuOpen = true
     SetNuiFocus(true, true)
     
-    -- Demander la liste des arènes disponibles
     TriggerServerEvent('duel:getAvailableArenas')
     
     SendNUIMessage({
@@ -158,10 +218,8 @@ end
 function quitDuel()
     print("^3[DUEL] Quitter le duel^7")
     
-    -- Réactiver toutes les permissions
     enablePlayerPermissions()
     
-    -- Informer le serveur qu'on quitte l'arène
     TriggerServerEvent('duel:quitArena')
     
     inDuel = false
@@ -170,18 +228,14 @@ function quitDuel()
     
     local playerPed = PlayerPedId()
     
-    -- Retirer toutes les armes
     RemoveAllPedWeapons(playerPed, true)
     
-    -- Retourner à la position originale
     if originalCoords then
         SetEntityCoords(playerPed, originalCoords.x, originalCoords.y, originalCoords.z, false, false, false, true)
     else
-        -- Position par défaut si pas de coordonnées sauvegardées
         SetEntityCoords(playerPed, interactionPoint.x, interactionPoint.y, interactionPoint.z, false, false, false, true)
     end
     
-    -- Message de confirmation
     TriggerEvent('chat:addMessage', {
         color = {0, 255, 0},
         multiline = true,
@@ -193,33 +247,21 @@ end
 function disablePlayerPermissions()
     print("^1[DUEL] Désactivation des permissions^7")
     
-    -- Désactiver les contrôles dangereux
     Citizen.CreateThread(function()
         while inDuel do
-            -- Désactiver le menu de pause
-            DisableControlAction(0, 200, true) -- ESC/Pause Menu
-            
-            -- Désactiver les menus de téléphone/interaction
-            DisableControlAction(0, 288, true) -- F1 (Téléphone)
-            DisableControlAction(0, 289, true) -- F2 
-            DisableControlAction(0, 170, true) -- F3
-            DisableControlAction(0, 167, true) -- F6
-            DisableControlAction(0, 166, true) -- F5
-            DisableControlAction(0, 199, true) -- P (Pause)
-            
-            -- Désactiver les menus de véhicule
-            DisableControlAction(0, 75, true) -- Sortir du véhicule
-            DisableControlAction(0, 23, true) -- Entrer dans véhicule
-            
-            -- Désactiver les interactions avec les objets
-            DisableControlAction(0, 47, true) -- G (Détacher)
-            DisableControlAction(0, 74, true) -- H (Klaxon)
-            
-            -- Désactiver le chat (optionnel)
-            DisableControlAction(0, 245, true) -- T (Chat)
-            
-            -- Désactiver les emotes
-            DisableControlAction(0, 244, true) -- M (Menu emotes)
+            DisableControlAction(0, 200, true)
+            DisableControlAction(0, 288, true)
+            DisableControlAction(0, 289, true)
+            DisableControlAction(0, 170, true)
+            DisableControlAction(0, 167, true)
+            DisableControlAction(0, 166, true)
+            DisableControlAction(0, 199, true)
+            DisableControlAction(0, 75, true)
+            DisableControlAction(0, 23, true)
+            DisableControlAction(0, 47, true)
+            DisableControlAction(0, 74, true)
+            DisableControlAction(0, 245, true)
+            DisableControlAction(0, 244, true)
             
             Citizen.Wait(0)
         end
@@ -229,8 +271,6 @@ end
 -- Fonction pour réactiver les permissions du joueur
 function enablePlayerPermissions()
     print("^2[DUEL] Réactivation des permissions^7")
-    -- Les contrôles se réactivent automatiquement quand on arrête de les désactiver
-    -- car on sort de la boucle while inDuel
 end
 
 -- Callbacks NUI
@@ -250,7 +290,6 @@ RegisterNUICallback('createArena', function(data, cb)
         return
     end
     
-    -- Mettre à jour l'arme sélectionnée pour le respawn
     selectedWeapon = data.weapon
     
     print("^2[DUEL] Fermeture du menu^7")
@@ -262,21 +301,23 @@ RegisterNUICallback('createArena', function(data, cb)
     cb('ok')
 end)
 
-RegisterNUICallback('joinArena', function(data, cb)
-    print("^2[DUEL] ========== CALLBACK JOINARENA ==========^7")
-    print("^3[DUEL] Données reçues: weapon=" .. tostring(data.weapon) .. "^7")
+RegisterNUICallback('joinSpecificArena', function(data, cb)
+    print("^2[DUEL] ========== CALLBACK JOIN SPECIFIC ARENA ==========^7")
+    print("^3[DUEL] Données reçues: arenaId=" .. tostring(data.arenaId) .. ", weapon=" .. tostring(data.weapon) .. "^7")
     
-    if not data.weapon then
-        print("^1[DUEL] Arme manquante^7")
+    if not data.arenaId or not data.weapon then
+        print("^1[DUEL] Données manquantes^7")
         cb('error')
         return
     end
     
+    selectedWeapon = data.weapon
+    
     print("^2[DUEL] Fermeture du menu^7")
     closeDuelMenu()
     
-    print("^2[DUEL] Envoi vers le serveur pour rejoindre une arène^7")
-    TriggerServerEvent('duel:joinArena', data.weapon)
+    print("^2[DUEL] Envoi vers le serveur pour rejoindre l'arène spécifique^7")
+    TriggerServerEvent('duel:joinSpecificArena', data.arenaId, data.weapon)
     
     cb('ok')
 end)
@@ -285,7 +326,7 @@ end)
 Citizen.CreateThread(function()
     while true do
         if isMenuOpen then
-            if IsControlJustPressed(1, 322) then -- ESC
+            if IsControlJustPressed(1, 322) then
                 print("^3[DUEL] ESC pressé^7")
                 closeDuelMenu()
             end
@@ -299,15 +340,12 @@ RegisterNetEvent('duel:instanceCreated')
 AddEventHandler('duel:instanceCreated', function(instanceId, weapon, map)
     print("^2[DUEL] Instance " .. tostring(instanceId) .. " créée pour arène '" .. tostring(map) .. "'^7")
     
-    -- Marquer comme en duel
     inDuel = true
     currentInstanceId = instanceId
     currentArena = map
     
-    -- Désactiver toutes les permissions dangereuses
     disablePlayerPermissions()
     
-    -- Téléporter le joueur vers l'arène
     local playerPed = PlayerPedId()
     local arena = arenas[map]
     
@@ -316,7 +354,6 @@ AddEventHandler('duel:instanceCreated', function(instanceId, weapon, map)
         
         print("^2[DUEL] Téléportation vers " .. arena.name .. " (" .. arena.center.x .. ", " .. arena.center.y .. ", " .. arena.center.z .. ")^7")
         
-        -- Donner l'arme sélectionnée
         local weapons = {
             pistol = "WEAPON_PISTOL",
             combat_pistol = "WEAPON_COMBATPISTOL",
@@ -324,14 +361,11 @@ AddEventHandler('duel:instanceCreated', function(instanceId, weapon, map)
             vintage_pistol = "WEAPON_VINTAGEPISTOL"
         }
         
-        -- Retirer toutes les armes d'abord
         RemoveAllPedWeapons(playerPed, true)
         
-        -- Donner la nouvelle arme
         local weaponHash = GetHashKey(weapons[weapon] or weapons.pistol)
         GiveWeaponToPed(playerPed, weaponHash, 250, false, true)
         
-        -- Message de confirmation
         TriggerEvent('chat:addMessage', {
             color = {0, 255, 0},
             multiline = true,
@@ -348,29 +382,29 @@ RegisterNetEvent('duel:instanceDeleted')
 AddEventHandler('duel:instanceDeleted', function()
     print("^1[DUEL] Instance supprimée^7")
     
-    -- Réactiver toutes les permissions
     enablePlayerPermissions()
     
     local playerPed = PlayerPedId()
     
-    -- Retirer toutes les armes
     RemoveAllPedWeapons(playerPed, true)
     
-    -- Retourner à la position originale
     if originalCoords then
         SetEntityCoords(playerPed, originalCoords.x, originalCoords.y, originalCoords.z, false, false, false, true)
     else
-        -- Position par défaut si pas de coordonnées sauvegardées
         SetEntityCoords(playerPed, interactionPoint.x, interactionPoint.y, interactionPoint.z, false, false, false, true)
     end
     
-    -- Message de confirmation
+    inDuel = false
+    currentInstanceId = nil
+    currentArena = nil
+    
     TriggerEvent('chat:addMessage', {
         color = {255, 165, 0},
         multiline = true,
         args = {"[DUEL]", "Vous avez quitté votre instance privée et êtes retourné au point de départ."}
     })
 end)
+
 -- Event reçu pour mettre à jour la liste des arènes disponibles
 RegisterNetEvent('duel:updateAvailableArenas')
 AddEventHandler('duel:updateAvailableArenas', function(arenas)
@@ -402,16 +436,15 @@ AddEventHandler('duel:opponentJoined', function(opponentName)
     -- Affichage grand écran pour le compte à rebours
     Citizen.CreateThread(function()
         -- 3
-        SetTextFont(0)
-        SetTextProportional(1)
-        SetTextScale(3.0, 3.0)
-        SetTextColour(255, 255, 255, 255)
-        SetTextDropshadow(0, 0, 0, 0, 255)
-        SetTextEdge(2, 0, 0, 0, 150)
-        SetTextCentre(true)
-        
         local startTime = GetGameTimer()
         while GetGameTimer() - startTime < 1000 do
+            SetTextFont(0)
+            SetTextProportional(1)
+            SetTextScale(3.0, 3.0)
+            SetTextColour(255, 255, 255, 255)
+            SetTextDropshadow(0, 0, 0, 0, 255)
+            SetTextEdge(2, 0, 0, 0, 150)
+            SetTextCentre(true)
             SetTextEntry("STRING")
             AddTextComponentString("3")
             DrawText(0.5, 0.4)
@@ -491,76 +524,8 @@ AddEventHandler('duel:opponentJoined', function(opponentName)
                 DrawText(0.5, 0.4)
                 Citizen.Wait(0)
             end
-        })
+        end)
     end)
 end)
 
--- Event pour gérer la mort et le respawn
--- Thread pour gérer la mort et le respawn automatique
-Citizen.CreateThread(function()
-    local wasAlive = true
-    
-    while true do
-        if inDuel then
-            local playerPed = PlayerPedId()
-            local isAlive = not IsEntityDead(playerPed)
-            
-            -- Détecter le changement d'état (vivant -> mort)
-            if wasAlive and not isAlive then
-                print("^1[DUEL] Joueur mort détecté, respawn immédiat^7")
-                
-                -- Respawn immédiat
-                if currentArena then
-                    local arena = arenas[currentArena]
-                    
-                    if arena then
-                        -- Position de respawn aléatoire dans l'arène
-                        local spawnX = arena.center.x + math.random(-15, 15)
-                        local spawnY = arena.center.y + math.random(-15, 15)
-                        local spawnZ = arena.center.z
-                        
-                        -- Ressusciter immédiatement
-                        local newPed = PlayerPedId()
-                        
-                        -- Forcer la résurrection
-                        NetworkResurrectLocalPlayer(spawnX, spawnY, spawnZ, 0.0, true, false)
-                        
-                        -- Attendre que le joueur soit respawné
-                        Citizen.Wait(100)
-                        
-                        newPed = PlayerPedId()
-                        SetEntityCoords(newPed, spawnX, spawnY, spawnZ, false, false, false, true)
-                        SetEntityHealth(newPed, 200)
-                        SetPedArmour(newPed, 0)
-                        ClearPedBloodDamage(newPed)
-                        
-                        -- Redonner l'arme avec les bonnes munitions
-                        local weapons = {
-                            pistol = "WEAPON_PISTOL",
-                            combat_pistol = "WEAPON_COMBATPISTOL",
-                            heavy_pistol = "WEAPON_HEAVYPISTOL",
-                            vintage_pistol = "WEAPON_VINTAGEPISTOL"
-                        }
-                        
-                        RemoveAllPedWeapons(newPed, true)
-                        local weaponHash = GetHashKey(weapons[selectedWeapon] or weapons.pistol)
-                        GiveWeaponToPed(newPed, weaponHash, 250, false, true)
-                        SetCurrentPedWeapon(newPed, weaponHash, true)
-                        
-                        print("^2[DUEL] Joueur respawné immédiatement dans l'arène^7")
-                        
-                        TriggerEvent('chat:addMessage', {
-                            color = {255, 165, 0},
-                            multiline = true,
-                            args = {"[DUEL]", "Respawn dans l'arène !"}
-                        })
-                    end
-                end
-            end
-            
-            wasAlive = isAlive
-        end
-        
-        Citizen.Wait(100) -- Vérifier toutes les 100ms pour une détection rapide
-    end
-end)
+print("^2[DUEL] Client script complètement initialisé^7")
