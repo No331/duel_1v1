@@ -106,26 +106,6 @@ Citizen.CreateThread(function()
     end
 end)
 
--- Thread pour la touche E pour quitter le duel
-Citizen.CreateThread(function()
-    while true do
-        if inDuel then
-            -- Afficher le texte d'aide
-            SetTextComponentFormat("STRING")
-            AddTextComponentString("Appuyez sur ~INPUT_CONTEXT~ pour quitter le duel")
-            DisplayHelpTextFromStringLabel(0, 0, 1, -1)
-            
-            -- Vérifier si E est pressé
-            if IsControlJustPressed(1, 38) then
-                print("^3[DUEL] Quitter le duel^7")
-                quitDuel()
-            end
-        end
-        
-        Citizen.Wait(0)
-    end
-end)
-
 -- Fonction pour ouvrir le menu
 function openDuelMenu()
     print("^3[DUEL] Ouverture du menu^7")
@@ -333,7 +313,7 @@ AddEventHandler('duel:instanceCreated', function(instanceId, weapon, map)
         TriggerEvent('chat:addMessage', {
             color = {0, 255, 0},
             multiline = true,
-            args = {"[DUEL]", "Vous êtes dans l'arène " .. arena.name .. " ! En attente d'un adversaire... Appuyez sur E pour quitter."}
+            args = {"[DUEL]", "Vous êtes dans l'arène " .. arena.name .. " ! En attente d'un adversaire..."}
         })
     else
         print("^1[DUEL] Arène '" .. tostring(map) .. "' non trouvée dans la liste des arènes^7")
