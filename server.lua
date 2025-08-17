@@ -44,9 +44,24 @@ function getPlayerInstance(playerId)
     return nil, nil
 end
 
+-- Commande de test pour vérifier la communication client-serveur
+print("^2[DUEL] Enregistrement de la commande testduel^7")
+RegisterCommand('testduel', function(source, args, rawCommand)
+    local playerName = GetPlayerName(source) or "Joueur " .. source
+    print("^2[DUEL] Commande testduel reçue de " .. playerName .. " (ID: " .. source .. ")^7")
+    
+    if source ~= 0 then
+        TriggerClientEvent('chat:addMessage', source, {
+            color = {0, 255, 0},
+            multiline = true,
+            args = {"[DUEL]", "Communication serveur OK !"}
+        })
+    end
+end, false)
+
 -- Event pour rejoindre une arène (créer une instance)
 print("^2[DUEL] Enregistrement de l'event duel:joinArena^7")
-RegisterServerEvent('duel:joinArena')
+RegisterNetEvent('duel:joinArena')
 AddEventHandler('duel:joinArena', function(weapon, map)
     local source = source
     local playerName = GetPlayerName(source) or "Joueur " .. source
@@ -89,25 +104,11 @@ AddEventHandler('duel:joinArena', function(weapon, map)
 end)
 print("^2[DUEL] Event duel:joinArena enregistré avec succès^7")
 
--- Commande de test pour vérifier la communication client-serveur
-RegisterCommand('testduel', function(source, args, rawCommand)
-    local playerName = GetPlayerName(source) or "Joueur " .. source
-    print("^2[DUEL] Commande testduel reçue de " .. playerName .. " (ID: " .. source .. ")^7")
-    
-    if source ~= 0 then
-        TriggerClientEvent('chat:addMessage', source, {
-            color = {0, 255, 0},
-            multiline = true,
-            args = {"[DUEL]", "Communication serveur OK !"}
-        })
-    end
-end, false)
-
 -- Event pour quitter une arène (supprimer l'instance)
-RegisterServerEvent('duel:quitArena')
+RegisterNetEvent('duel:quitArena')
 AddEventHandler('duel:quitArena', function()
     local source = source
-    local playerName = GetPlayerName(source)
+    local playerName = GetPlayerName(source) or "Joueur " .. source
     
     print("^3[DUEL] " .. playerName .. " (ID: " .. source .. ") quitte son arène^7")
     
@@ -162,11 +163,12 @@ RegisterCommand('duel_instances', function(source, args, rawCommand)
             })
         end
     end
+end, false)
 
--- Nettoyage automatique des instances anciennes (toutes les 5 minutes)
+-- Nettoyage automatique des instances anciennes (toutes les 2 heures)
 Citizen.CreateThread(function()
     while true do
-        Citizen.Wait(1800000) -- 30 minutes
+        Citizen.Wait(7200000) -- 2 heures
         
         local currentTime = os.time()
         local toDelete = {}
@@ -189,3 +191,5 @@ Citizen.CreateThread(function()
         end
     end
 end)
+
+print("^2[DUEL] Server script complètement initialisé^7")
