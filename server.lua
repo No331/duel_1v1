@@ -5,19 +5,22 @@ local instances = {}
 local nextInstanceId = 1
 
 -- Fonction pour créer une nouvelle instance
-function createInstance(playerId, arenaType)
+function createInstance(playerId, arenaType, weapon)
     local instanceId = nextInstanceId
     nextInstanceId = nextInstanceId + 1
     
     instances[instanceId] = {
         id = instanceId,
-        owner = playerId,
+        creator = playerId,
         arena = arenaType,
+        weapon = weapon,
         players = {playerId},
+        maxPlayers = 2,
+        status = "waiting", -- waiting, full, active
         created = os.time()
     }
     
-    print("^3[DUEL] Instance " .. instanceId .. " créée pour le joueur " .. playerId .. " (arène: " .. arenaType .. ")^7")
+    print("^3[DUEL] Instance " .. instanceId .. " créée par le joueur " .. playerId .. " (arène: " .. arenaType .. ", arme: " .. weapon .. ")^7")
     return instanceId
 end
 
@@ -25,7 +28,7 @@ end
 function deleteInstance(instanceId)
     if instances[instanceId] then
         local instance = instances[instanceId]
-        print("^1[DUEL] Instance " .. instanceId .. " supprimée (propriétaire: " .. instance.owner .. ", arène: " .. instance.arena .. ")^7")
+        print("^1[DUEL] Instance " .. instanceId .. " supprimée (créateur: " .. instance.creator .. ", arène: " .. instance.arena .. ")^7")
         instances[instanceId] = nil
     else
         print("^1[DUEL] Tentative de suppression d'une instance inexistante: " .. instanceId .. "^7")
@@ -44,6 +47,51 @@ function getPlayerInstance(playerId)
     return nil, nil
 end
 
+-- Fonction pour obtenir les arènes disponibles (en attente de joueurs)
+function getAvailableArenas()
+    local available = {}
+    for instanceId, instance in pairs(instances) do
+        if instance.status == "waiting" and #instance.players < instance.maxPlayers then
+            table.insert(available, {
+                id = instanceId,
+                arena = instance.arena,
+                weapon = instance.weapon,
+                players = #instance.players,
+                maxPlayers = instance.maxPlayers
+            })
+        end
+    end
+    return available
+end
+
+-- Fonction pour ajouter un joueur à une instance
+function addPlayerToInstance(instanceId, playerId)
+    local instance = instances[instanceId]
+    if not instance then
+        return false, "Instance non trouvée"
+    end
+    
+    if #instance.players >= instance.maxPlayers then
+        return false, "Instance pleine"
+    end
+    
+    -- Vérifier que le joueur n'est pas déjà dans l'instance
+    for _, pid in ipairs(instance.players) do
+        if pid == playerId then
+            return false, "Joueur déjà dans l'instance"
+        end
+    end
+    
+    table.insert(instance.players, playerId)
+    
+    -- Si l'instance est maintenant pleine, changer le statut
+    if #instance.players >= instance.maxPlayers then
+        instance.status = "full"
+    end
+    
+    return true, "Joueur ajouté avec succès"
+end
+
 -- Commande de test pour vérifier la communication client-serveur
 print("^2[DUEL] Enregistrement de la commande testduel^7")
 RegisterCommand('testduel', function(source, args, rawCommand)
@@ -60,13 +108,13 @@ RegisterCommand('testduel', function(source, args, rawCommand)
 end, false)
 
 -- Event pour rejoindre une arène (créer une instance)
-print("^2[DUEL] Enregistrement de l'event duel:joinArena^7")
-RegisterNetEvent('duel:joinArena')
-AddEventHandler('duel:joinArena', function(weapon, map)
+print("^2[DUEL] Enregistrement de l'event duel:createArena^7")
+RegisterNetEvent('duel:createArena')
+AddEventHandler('duel:createArena', function(weapon, map)
     local source = source
     local playerName = GetPlayerName(source) or "Joueur " .. source
     
-    print("^2[DUEL] ========== EVENT JOINARENA SERVEUR ==========^7")
+    print("^2[DUEL] ========== EVENT CREATEARENA SERVEUR ==========^7")
     print("^2[DUEL] Joueur: " .. playerName .. " (ID: " .. source .. ")^7")
     print("^2[DUEL] Paramètres reçus:^7")
     print("^2[DUEL]   weapon = " .. tostring(weapon) .. " (type: " .. type(weapon) .. ")^7")
@@ -90,9 +138,9 @@ AddEventHandler('duel:joinArena', function(weapon, map)
         print("^2[DUEL] Aucune instance existante pour le joueur^7")
     end
     
-    print("^2[DUEL] Création de la nouvelle instance^7")
-    -- Créer une nouvelle instance privée
-    local instanceId = createInstance(source, map)
+    print("^2[DUEL] Création de la nouvelle instance d'arène^7")
+    -- Créer une nouvelle instance en attente
+    local instanceId = createInstance(source, map, weapon)
     
     print("^2[DUEL] Instance " .. instanceId .. " créée avec succès pour " .. playerName .. "^7")
     print("^2[DUEL] Envoi de l'event duel:instanceCreated au client^7")
@@ -100,9 +148,85 @@ AddEventHandler('duel:joinArena', function(weapon, map)
     -- Confirmer au client
     TriggerClientEvent('duel:instanceCreated', source, instanceId, weapon, map)
     
+    -- Notifier tous les clients de la mise à jour des arènes disponibles
+    local availableArenas = getAvailableArenas()
+    TriggerClientEvent('duel:updateAvailableArenas', -1, availableArenas)
+    
+    print("^2[DUEL] ========== FIN EVENT CREATEARENA ==========^7")
+end)
+print("^2[DUEL] Event duel:createArena enregistré avec succès^7")
+
+-- Event pour rejoindre une arène existante
+print("^2[DUEL] Enregistrement de l'event duel:joinArena^7")
+RegisterNetEvent('duel:joinArena')
+AddEventHandler('duel:joinArena', function(weapon)
+    local source = source
+    local playerName = GetPlayerName(source) or "Joueur " .. source
+    
+    print("^2[DUEL] ========== EVENT JOINARENA SERVEUR ==========^7")
+    print("^2[DUEL] Joueur: " .. playerName .. " (ID: " .. source .. ") veut rejoindre une arène^7")
+    print("^2[DUEL] Arme sélectionnée: " .. tostring(weapon) .. "^7")
+    
+    -- Vérifier si le joueur est déjà dans une instance
+    local currentInstanceId, currentInstance = getPlayerInstance(source)
+    if currentInstanceId then
+        print("^1[DUEL] Joueur " .. source .. " déjà dans l'instance " .. currentInstanceId .. "^7")
+        return
+    end
+    
+    -- Trouver une arène disponible avec la même arme
+    local targetInstanceId = nil
+    for instanceId, instance in pairs(instances) do
+        if instance.status == "waiting" and instance.weapon == weapon and #instance.players < instance.maxPlayers then
+            targetInstanceId = instanceId
+            break
+        end
+    end
+    
+    if not targetInstanceId then
+        print("^1[DUEL] Aucune arène disponible avec l'arme " .. weapon .. "^7")
+        TriggerClientEvent('chat:addMessage', source, {
+            color = {255, 0, 0},
+            multiline = true,
+            args = {"[DUEL]", "Aucune arène disponible avec cette arme. Créez votre propre arène !"}
+        })
+        return
+    end
+    
+    -- Ajouter le joueur à l'instance
+    local success, message = addPlayerToInstance(targetInstanceId, source)
+    if not success then
+        print("^1[DUEL] Impossible d'ajouter le joueur à l'instance: " .. message .. "^7")
+        return
+    end
+    
+    local instance = instances[targetInstanceId]
+    print("^2[DUEL] Joueur " .. source .. " ajouté à l'instance " .. targetInstanceId .. "^7")
+    
+    -- Téléporter le joueur vers l'arène
+    TriggerClientEvent('duel:instanceCreated', source, targetInstanceId, weapon, instance.arena)
+    
+    -- Notifier le créateur qu'un adversaire a rejoint
+    local creatorName = GetPlayerName(instance.creator) or "Joueur " .. instance.creator
+    TriggerClientEvent('duel:opponentJoined', instance.creator, playerName)
+    TriggerClientEvent('duel:opponentJoined', source, creatorName)
+    
+    -- Mettre à jour la liste des arènes disponibles pour tous
+    local availableArenas = getAvailableArenas()
+    TriggerClientEvent('duel:updateAvailableArenas', -1, availableArenas)
+    
     print("^2[DUEL] ========== FIN EVENT JOINARENA ==========^7")
 end)
 print("^2[DUEL] Event duel:joinArena enregistré avec succès^7")
+
+-- Event pour obtenir les arènes disponibles
+RegisterNetEvent('duel:getAvailableArenas')
+AddEventHandler('duel:getAvailableArenas', function()
+    local source = source
+    local availableArenas = getAvailableArenas()
+    print("^3[DUEL] Envoi de " .. #availableArenas .. " arène(s) disponible(s) au joueur " .. source .. "^7")
+    TriggerClientEvent('duel:updateAvailableArenas', source, availableArenas)
+end)
 
 -- Event pour quitter une arène (supprimer l'instance)
 RegisterNetEvent('duel:quitArena')
@@ -146,10 +270,10 @@ RegisterCommand('duel_instances', function(source, args, rawCommand)
         local count = 0
         for instanceId, instance in pairs(instances) do
             count = count + 1
-            local playerName = GetPlayerName(instance.owner) or "Joueur déconnecté"
+            local creatorName = GetPlayerName(instance.creator) or "Joueur déconnecté"
             local timeElapsed = os.time() - instance.created
-            print("^3  Instance " .. instanceId .. ": " .. playerName .. " (" .. instance.owner .. ") - Arène: " .. instance.arena .. "^7")
-            print("^3    Créée il y a " .. timeElapsed .. " secondes^7")
+            print("^3  Instance " .. instanceId .. ": " .. creatorName .. " (" .. instance.creator .. ") - Arène: " .. instance.arena .. " - Arme: " .. instance.weapon .. "^7")
+            print("^3    Joueurs: " .. #instance.players .. "/" .. instance.maxPlayers .. " - Statut: " .. instance.status .. " - Créée il y a " .. timeElapsed .. " secondes^7")
         end
         if count == 0 then
             print("^1  Aucune instance active^7")
@@ -184,8 +308,8 @@ Citizen.CreateThread(function()
             print("^1[DUEL] Instance " .. instanceId .. " supprimée automatiquement (trop ancienne - plus de 2h)^7")
             -- Informer le joueur que son instance a été supprimée
             local instance = instances[instanceId]
-            if instance and instance.owner then
-                TriggerClientEvent('duel:instanceDeleted', instance.owner)
+            if instance and instance.creator then
+                TriggerClientEvent('duel:instanceDeleted', instance.creator)
             end
             deleteInstance(instanceId)
         end

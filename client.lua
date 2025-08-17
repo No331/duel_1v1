@@ -136,6 +136,9 @@ function openDuelMenu()
     isMenuOpen = true
     SetNuiFocus(true, true)
     
+    -- Demander la liste des arènes disponibles
+    TriggerServerEvent('duel:getAvailableArenas')
+    
     SendNUIMessage({
         type = "openMenu"
     })
@@ -238,45 +241,41 @@ RegisterNUICallback('closeMenu', function(data, cb)
     cb('ok')
 end)
 
-RegisterNUICallback('joinArena', function(data, cb)
-    print("^2[DUEL] ========== CALLBACK JOINARENA ==========^7")
-    print("^3[DUEL] Données brutes reçues: " .. tostring(data) .. "^7")
-    
-    if data then
-        print("^3[DUEL] Type de data: " .. type(data) .. "^7")
-        if type(data) == "table" then
-            print("^3[DUEL] Contenu de data:^7")
-            for k, v in pairs(data) do
-                print("^3[DUEL]   " .. tostring(k) .. " = " .. tostring(v) .. "^7")
-            end
-        end
-        print("^3[DUEL] data.weapon = " .. tostring(data.weapon) .. "^7")
-        print("^3[DUEL] data.map = " .. tostring(data.map) .. "^7")
-    else
-        print("^1[DUEL] ERREUR: data est nil !^7")
-    end
+RegisterNUICallback('createArena', function(data, cb)
+    print("^2[DUEL] ========== CALLBACK CREATEARENA ==========^7")
+    print("^3[DUEL] Données reçues: weapon=" .. tostring(data.weapon) .. ", map=" .. tostring(data.map) .. "^7")
     
     if not data.weapon or not data.map then
-        print("^1[DUEL] Données manquantes - weapon: " .. tostring(data.weapon) .. ", map: " .. tostring(data.map) .. "^7")
+        print("^1[DUEL] Données manquantes^7")
         cb('error')
         return
     end
     
-    print("^2[DUEL] Validation OK, fermeture du menu^7")
-    -- Fermer le menu
+    print("^2[DUEL] Fermeture du menu^7")
     closeDuelMenu()
     
-    print("^2[DUEL] Envoi vers le serveur: weapon=" .. tostring(data.weapon) .. ", map=" .. tostring(data.map) .. "^7")
-    -- Demander au serveur de créer une instance
-    print("^2[DUEL] TriggerServerEvent appelé^7")
-    TriggerServerEvent('duel:joinArena', data.weapon, data.map)
+    print("^2[DUEL] Envoi vers le serveur pour créer l'arène^7")
+    TriggerServerEvent('duel:createArena', data.weapon, data.map)
     
-    -- Attendre un peu pour voir si le serveur répond
-    Citizen.SetTimeout(2000, function()
-        print("^1[DUEL] Timeout - Aucune réponse du serveur après 2 secondes^7")
-    end)
+    cb('ok')
+end)
+
+RegisterNUICallback('joinArena', function(data, cb)
+    print("^2[DUEL] ========== CALLBACK JOINARENA ==========^7")
+    print("^3[DUEL] Données reçues: weapon=" .. tostring(data.weapon) .. "^7")
     
-    print("^2[DUEL] Callback terminé avec succès^7")
+    if not data.weapon then
+        print("^1[DUEL] Arme manquante^7")
+        cb('error')
+        return
+    end
+    
+    print("^2[DUEL] Fermeture du menu^7")
+    closeDuelMenu()
+    
+    print("^2[DUEL] Envoi vers le serveur pour rejoindre une arène^7")
+    TriggerServerEvent('duel:joinArena', data.weapon)
+    
     cb('ok')
 end)
 
@@ -334,7 +333,7 @@ AddEventHandler('duel:instanceCreated', function(instanceId, weapon, map)
         TriggerEvent('chat:addMessage', {
             color = {0, 255, 0},
             multiline = true,
-            args = {"[DUEL]", "Instance privée " .. tostring(instanceId) .. " créée ! Arène: " .. arena.name .. " (Zone: " .. arena.radius .. "m). Appuyez sur E pour quitter."}
+            args = {"[DUEL]", "Vous êtes dans l'arène " .. arena.name .. " ! En attente d'un adversaire... Appuyez sur E pour quitter."}
         })
     else
         print("^1[DUEL] Arène '" .. tostring(map) .. "' non trouvée dans la liste des arènes^7")
@@ -369,4 +368,48 @@ AddEventHandler('duel:instanceDeleted', function()
         multiline = true,
         args = {"[DUEL]", "Vous avez quitté votre instance privée et êtes retourné au point de départ."}
     })
+end)
+-- Event reçu pour mettre à jour la liste des arènes disponibles
+RegisterNetEvent('duel:updateAvailableArenas')
+AddEventHandler('duel:updateAvailableArenas', function(arenas)
+    print("^3[DUEL] Mise à jour des arènes disponibles: " .. #arenas .. " arène(s)^7")
+    
+    SendNUIMessage({
+        type = "updateArenas",
+        arenas = arenas
+    })
+end)
+
+-- Event reçu quand un adversaire rejoint
+RegisterNetEvent('duel:opponentJoined')
+AddEventHandler('duel:opponentJoined', function(opponentName)
+    print("^2[DUEL] Adversaire rejoint: " .. tostring(opponentName) .. "^7")
+    
+    TriggerEvent('chat:addMessage', {
+        color = {0, 255, 0},
+        multiline = true,
+        args = {"[DUEL]", opponentName .. " a rejoint l'arène ! Le duel commence dans 3 secondes..."}
+    })
+    
+    -- Compte à rebours
+    Citizen.SetTimeout(1000, function()
+        TriggerEvent('chat:addMessage', {
+            color = {255, 165, 0},
+            args = {"[DUEL]", "2..."}
+        })
+    end)
+    
+    Citizen.SetTimeout(2000, function()
+        TriggerEvent('chat:addMessage', {
+            color = {255, 165, 0},
+            args = {"[DUEL]", "1..."}
+        })
+    end)
+    
+    Citizen.SetTimeout(3000, function()
+        TriggerEvent('chat:addMessage', {
+            color = {255, 0, 0},
+            args = {"[DUEL]", "COMBAT !"}
+        })
+    end)
 end)

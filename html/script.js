@@ -2,6 +2,7 @@ console.log('[DUEL] Script JS chargé');
 
 let selectedWeapon = null;
 let selectedMap = null;
+let availableArenas = [];
 
 // Écouter les messages du client Lua
 window.addEventListener('message', function(event) {
@@ -14,6 +15,9 @@ window.addEventListener('message', function(event) {
             break;
         case 'closeMenu':
             closeMenu();
+            break;
+        case 'updateArenas':
+            updateAvailableArenas(data.arenas);
             break;
     }
 });
@@ -50,9 +54,11 @@ function closeMenu() {
 }
 
 function updateJoinButton() {
+    const createBtn = document.getElementById('createBtn');
     const joinBtn = document.getElementById('joinBtn');
     const selectedWeaponSpan = document.getElementById('selectedWeapon');
     const selectedMapSpan = document.getElementById('selectedMap');
+    const playersCountSpan = document.getElementById('playersCount');
     
     // Mettre à jour l'affichage des sélections
     if (selectedWeaponSpan) {
@@ -62,9 +68,21 @@ function updateJoinButton() {
         selectedMapSpan.textContent = selectedMap ? selectedMap.toUpperCase() : 'Aucune';
     }
     
-    // Activer le bouton si au moins une arme et une map sont sélectionnées
+    // Mettre à jour le compteur de joueurs
+    if (playersCountSpan) {
+        playersCountSpan.textContent = availableArenas.length + '/2';
+    }
+    
+    // Activer le bouton créer si au moins une arme et une map sont sélectionnées
     if (selectedWeapon && selectedMap) {
-        joinBtn.disabled = false;
+        createBtn.disabled = false;
+    } else {
+        createBtn.disabled = true;
+    }
+    
+    // Activer le bouton rejoindre s'il y a des arènes disponibles
+    if (selectedWeapon && selectedMap) {
+        joinBtn.disabled = availableArenas.length === 0;
     } else {
         joinBtn.disabled = true;
     }
@@ -102,22 +120,50 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // Bouton rejoindre l'arène
-    const joinBtn = document.getElementById('joinBtn');
-    if (joinBtn) {
-        joinBtn.addEventListener('click', function() {
-            console.log('[DUEL] Bouton rejoindre cliqué');
-            console.log('[DUEL] selectedWeapon:', selectedWeapon);
-            console.log('[DUEL] selectedMap:', selectedMap);
+    // Bouton créer l'arène
+    const createBtn = document.getElementById('createBtn');
+    if (createBtn) {
+        createBtn.addEventListener('click', function() {
+            console.log('[DUEL] Bouton créer cliqué');
             
             if (selectedWeapon && selectedMap) {
-                console.log('[DUEL] Rejoindre l\'arène avec:', selectedWeapon, selectedMap);
+                console.log('[DUEL] Créer l\'arène avec:', selectedWeapon, selectedMap);
                 
                 const payload = {
                     weapon: selectedWeapon,
                     map: selectedMap
                 };
-                console.log('[DUEL] Payload envoyé:', JSON.stringify(payload));
+                
+                fetch(`https://duel_1v1/createArena`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                }).then(response => {
+                    console.log('[DUEL] Réponse créer arène - Status:', response.status);
+                    return response.text();
+                }).then(text => {
+                    console.log('[DUEL] Réponse texte:', text);
+                }).catch(err => {
+                    console.log('[DUEL] Erreur créer arène:', err);
+                });
+            }
+        });
+    }
+    
+    // Bouton rejoindre une arène
+    const joinBtn = document.getElementById('joinBtn');
+    if (joinBtn) {
+        joinBtn.addEventListener('click', function() {
+            console.log('[DUEL] Bouton rejoindre cliqué');
+            
+            if (selectedWeapon && availableArenas.length > 0) {
+                console.log('[DUEL] Rejoindre une arène avec:', selectedWeapon);
+                
+                const payload = {
+                    weapon: selectedWeapon
+                };
                 
                 fetch(`https://duel_1v1/joinArena`, {
                     method: 'POST',
@@ -135,8 +181,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             } else {
                 console.log('[DUEL] Impossible de rejoindre - Sélections manquantes');
-                console.log('[DUEL] selectedWeapon:', selectedWeapon);
-                console.log('[DUEL] selectedMap:', selectedMap);
             }
         });
     }
@@ -174,3 +218,9 @@ document.addEventListener('keydown', function(event) {
         }).catch(err => console.log('[DUEL] Erreur:', err));
     }
 });
+
+function updateAvailableArenas(arenas) {
+    console.log('[DUEL] Mise à jour des arènes disponibles:', arenas);
+    availableArenas = arenas || [];
+    updateJoinButton();
+}
