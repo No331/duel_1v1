@@ -268,7 +268,13 @@ RegisterNUICallback('joinArena', function(data, cb)
     
     print("^2[DUEL] Envoi vers le serveur: weapon=" .. tostring(data.weapon) .. ", map=" .. tostring(data.map) .. "^7")
     -- Demander au serveur de créer une instance
+    print("^2[DUEL] TriggerServerEvent appelé^7")
     TriggerServerEvent('duel:joinArena', data.weapon, data.map)
+    
+    -- Attendre un peu pour voir si le serveur répond
+    Citizen.SetTimeout(2000, function()
+        print("^1[DUEL] Timeout - Aucune réponse du serveur après 2 secondes^7")
+    end)
     
     print("^2[DUEL] Callback terminé avec succès^7")
     cb('ok')

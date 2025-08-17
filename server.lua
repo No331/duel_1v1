@@ -45,10 +45,11 @@ function getPlayerInstance(playerId)
 end
 
 -- Event pour rejoindre une arène (créer une instance)
+print("^2[DUEL] Enregistrement de l'event duel:joinArena^7")
 RegisterServerEvent('duel:joinArena')
 AddEventHandler('duel:joinArena', function(weapon, map)
     local source = source
-    local playerName = GetPlayerName(source)
+    local playerName = GetPlayerName(source) or "Joueur " .. source
     
     print("^2[DUEL] ========== EVENT JOINARENA SERVEUR ==========^7")
     print("^2[DUEL] Joueur: " .. playerName .. " (ID: " .. source .. ")^7")
@@ -86,6 +87,21 @@ AddEventHandler('duel:joinArena', function(weapon, map)
     
     print("^2[DUEL] ========== FIN EVENT JOINARENA ==========^7")
 end)
+print("^2[DUEL] Event duel:joinArena enregistré avec succès^7")
+
+-- Commande de test pour vérifier la communication client-serveur
+RegisterCommand('testduel', function(source, args, rawCommand)
+    local playerName = GetPlayerName(source) or "Joueur " .. source
+    print("^2[DUEL] Commande testduel reçue de " .. playerName .. " (ID: " .. source .. ")^7")
+    
+    if source ~= 0 then
+        TriggerClientEvent('chat:addMessage', source, {
+            color = {0, 255, 0},
+            multiline = true,
+            args = {"[DUEL]", "Communication serveur OK !"}
+        })
+    end
+end, false)
 
 -- Event pour quitter une arène (supprimer l'instance)
 RegisterServerEvent('duel:quitArena')
