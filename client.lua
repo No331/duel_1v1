@@ -5,6 +5,7 @@ local inDuel = false
 local currentInstanceId = nil
 local originalCoords = nil
 local currentArena = nil
+local selectedWeapon = nil
 
 -- Point d'interaction
 local interactionPoint = vector3(256.3, -776.82, 30.88)
