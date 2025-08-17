@@ -11,25 +11,25 @@ local interactionPoint = vector3(256.3, -776.82, 30.88)
 
 -- Coordonnées des arènes avec zones limitées (50m de rayon)
 local arenas = {
-    dock = {
+    aeroport = {
         center = vector3(-1037.0, -2737.0, 20.0),
         radius = 50.0,
-        name = "DOCK"
+        name = "AEROPORT"
     },
-    port = {
+    ["dans l'eau"] = {
         center = vector3(-1308.0, 6636.0, 5.0),
         radius = 50.0,
-        name = "PORT"
+        name = "DANS L'EAU"
     },
-    hangar = {
+    foret = {
         center = vector3(-1617.0, 4445.0, 3.0),
         radius = 50.0,
-        name = "HANGAR"
+        name = "FORET"
     },
-    usine = {
+    hippie = {
         center = vector3(2450.0, 3757.0, 41.0),
         radius = 50.0,
-        name = "USINE"
+        name = "HIPPIE"
     }
 }
 
@@ -240,7 +240,13 @@ end)
 
 RegisterNUICallback('joinArena', function(data, cb)
     print("^2[DUEL] Callback joinArena reçu^7")
-    print("^3[DUEL] Arme: " .. tostring(data.weapon) .. ", Map: " .. tostring(data.map) .. "^7")
+    print("^3[DUEL] Données reçues: " .. json.encode(data) .. "^7")
+    
+    if not data.weapon or not data.map then
+        print("^1[DUEL] Données manquantes - weapon: " .. tostring(data.weapon) .. ", map: " .. tostring(data.map) .. "^7")
+        cb('error')
+        return
+    end
     
     -- Fermer le menu
     closeDuelMenu()
@@ -267,7 +273,7 @@ end)
 -- Event reçu quand une instance est créée
 RegisterNetEvent('duel:instanceCreated')
 AddEventHandler('duel:instanceCreated', function(instanceId, weapon, map)
-    print("^2[DUEL] Instance " .. instanceId .. " créée^7")
+    print("^2[DUEL] Instance " .. tostring(instanceId) .. " créée pour arène '" .. tostring(map) .. "'^7")
     
     -- Marquer comme en duel
     inDuel = true
@@ -283,6 +289,8 @@ AddEventHandler('duel:instanceCreated', function(instanceId, weapon, map)
     
     if arena then
         SetEntityCoords(playerPed, arena.center.x, arena.center.y, arena.center.z, false, false, false, true)
+        
+        print("^2[DUEL] Téléportation vers " .. arena.name .. " (" .. arena.center.x .. ", " .. arena.center.y .. ", " .. arena.center.z .. ")^7")
         
         -- Donner l'arme sélectionnée
         local weapons = {
@@ -303,8 +311,11 @@ AddEventHandler('duel:instanceCreated', function(instanceId, weapon, map)
         TriggerEvent('chat:addMessage', {
             color = {0, 255, 0},
             multiline = true,
-            args = {"[DUEL]", "Instance privée " .. instanceId .. " créée ! Arène: " .. arena.name .. " (Zone: " .. arena.radius .. "m). Appuyez sur E pour quitter."}
+            args = {"[DUEL]", "Instance privée " .. tostring(instanceId) .. " créée ! Arène: " .. arena.name .. " (Zone: " .. arena.radius .. "m). Appuyez sur E pour quitter."}
         })
+    else
+        print("^1[DUEL] Arène '" .. tostring(map) .. "' non trouvée dans la liste des arènes^7")
+        print("^1[DUEL] Arènes disponibles: aeroport, dans l'eau, foret, hippie^7")
     end
 end)
 

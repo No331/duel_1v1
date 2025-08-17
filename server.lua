@@ -50,7 +50,13 @@ AddEventHandler('duel:joinArena', function(weapon, map)
     local source = source
     local playerName = GetPlayerName(source)
     
-    print("^2[DUEL] " .. playerName .. " (ID: " .. source .. ") rejoint l'arène " .. map .. " avec " .. weapon .. "^7")
+    print("^2[DUEL] " .. playerName .. " (ID: " .. source .. ") rejoint l'arène '" .. tostring(map) .. "' avec '" .. tostring(weapon) .. "'^7")
+    
+    -- Vérifier que les paramètres sont valides
+    if not weapon or not map then
+        print("^1[DUEL] Paramètres invalides - weapon: " .. tostring(weapon) .. ", map: " .. tostring(map) .. "^7")
+        return
+    end
     
     -- Vérifier si le joueur est déjà dans une instance
     local currentInstanceId, currentInstance = getPlayerInstance(source)
