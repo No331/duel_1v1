@@ -99,10 +99,28 @@ Citizen.CreateThread(function()
                         args = {"[DUEL]", "Vous avez dépassé la zone de combat ! Retour au centre."}
                     })
                 end
+                
+                -- Afficher le message pour quitter
+                SetTextComponentFormat("STRING")
+                AddTextComponentString("Appuyez sur ~INPUT_CONTEXT~ pour quitter le duel")
+                DisplayHelpTextFromStringLabel(0, 0, 1, -1)
             end
         end
         
         Citizen.Wait(500) -- Vérifier toutes les 500ms
+    end
+end)
+
+-- Thread pour gérer la touche E pour quitter le duel
+Citizen.CreateThread(function()
+    while true do
+        if inDuel then
+            if IsControlJustPressed(1, 38) then -- E key
+                print("^3[DUEL] Touche E pressée pour quitter le duel^7")
+                quitDuel()
+            end
+        end
+        Citizen.Wait(0)
     end
 end)
 
