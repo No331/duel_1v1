@@ -393,3 +393,98 @@ AddEventHandler('duel:opponentJoined', function(opponentName)
         })
     end)
 end)
+
+-- Event pour gérer la mort et le respawn
+AddEventHandler('baseevents:onPlayerDied', function(killerType, coords)
+    if inDuel and currentArena then
+        print("^1[DUEL] Joueur mort en duel, respawn dans 3 secondes^7")
+        
+        Citizen.SetTimeout(3000, function()
+            local playerPed = PlayerPedId()
+            local arena = arenas[currentArena]
+            
+            if arena then
+                -- Respawn au centre de l'arène
+                local spawnX = arena.center.x + math.random(-10, 10)
+                local spawnY = arena.center.y + math.random(-10, 10)
+                local spawnZ = arena.center.z
+                
+                -- Ressusciter le joueur
+                local playerPed = PlayerPedId()
+                ReviveInjuredPed(playerPed)
+                SetEntityCoords(playerPed, spawnX, spawnY, spawnZ, false, false, false, true)
+                SetEntityHealth(playerPed, 200)
+                ClearPedBloodDamage(playerPed)
+                
+                -- Redonner l'arme
+                local weapons = {
+                    pistol = "WEAPON_PISTOL",
+                    combat_pistol = "WEAPON_COMBATPISTOL",
+                    heavy_pistol = "WEAPON_HEAVYPISTOL",
+                    vintage_pistol = "WEAPON_VINTAGEPISTOL"
+                }
+                
+                local weaponHash = GetHashKey(weapons[selectedWeapon] or weapons.pistol)
+                GiveWeaponToPed(playerPed, weaponHash, 250, false, true)
+                
+                print("^2[DUEL] Joueur respawné dans l'arène^7")
+                
+                TriggerEvent('chat:addMessage', {
+                    color = {255, 165, 0},
+                    multiline = true,
+                    args = {"[DUEL]", "Vous avez été éliminé ! Respawn dans l'arène..."}
+                })
+            end
+        end)
+    end
+end)
+
+-- Event alternatif pour la mort (au cas où baseevents ne fonctionne pas)
+Citizen.CreateThread(function()
+    while true do
+        if inDuel then
+            local playerPed = PlayerPedId()
+            
+            if IsEntityDead(playerPed) then
+                print("^1[DUEL] Détection de mort en duel^7")
+                
+                Citizen.SetTimeout(3000, function()
+                    if inDuel and currentArena then
+                        local arena = arenas[currentArena]
+                        
+                        if arena then
+                            -- Respawn au centre de l'arène
+                            local spawnX = arena.center.x + math.random(-10, 10)
+                            local spawnY = arena.center.y + math.random(-10, 10)
+                            local spawnZ = arena.center.z
+                            
+                            -- Ressusciter le joueur
+                            local newPed = PlayerPedId()
+                            ReviveInjuredPed(newPed)
+                            SetEntityCoords(newPed, spawnX, spawnY, spawnZ, false, false, false, true)
+                            SetEntityHealth(newPed, 200)
+                            ClearPedBloodDamage(newPed)
+                            
+                            -- Redonner l'arme
+                            local weapons = {
+                                pistol = "WEAPON_PISTOL",
+                                combat_pistol = "WEAPON_COMBATPISTOL",
+                                heavy_pistol = "WEAPON_HEAVYPISTOL",
+                                vintage_pistol = "WEAPON_VINTAGEPISTOL"
+                            }
+                            
+                            local weaponHash = GetHashKey(weapons[selectedWeapon] or weapons.pistol)
+                            GiveWeaponToPed(newPed, weaponHash, 250, false, true)
+                            
+                            print("^2[DUEL] Joueur respawné dans l'arène (thread alternatif)^7")
+                        end
+                    end
+                end)
+                
+                Citizen.Wait(5000) -- Attendre 5 secondes avant de revérifier
+            end
+        end
+        
+        Citizen.Wait(1000)
+    end
+end)

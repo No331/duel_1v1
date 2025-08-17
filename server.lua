@@ -219,6 +219,83 @@ AddEventHandler('duel:joinArena', function(weapon)
 end)
 print("^2[DUEL] Event duel:joinArena enregistré avec succès^7")
 
+-- Event pour rejoindre une arène spécifique
+print("^2[DUEL] Enregistrement de l'event duel:joinSpecificArena^7")
+RegisterNetEvent('duel:joinSpecificArena')
+AddEventHandler('duel:joinSpecificArena', function(arenaId, weapon)
+    local source = source
+    local playerName = GetPlayerName(source) or "Joueur " .. source
+    
+    print("^2[DUEL] ========== EVENT JOIN SPECIFIC ARENA ==========^7")
+    print("^2[DUEL] Joueur: " .. playerName .. " (ID: " .. source .. ") veut rejoindre l'arène " .. arenaId .. "^7")
+    print("^2[DUEL] Arme sélectionnée: " .. tostring(weapon) .. "^7")
+    
+    -- Vérifier si le joueur est déjà dans une instance
+    local currentInstanceId, currentInstance = getPlayerInstance(source)
+    if currentInstanceId then
+        print("^1[DUEL] Joueur " .. source .. " déjà dans l'instance " .. currentInstanceId .. "^7")
+        return
+    end
+    
+    -- Vérifier que l'arène existe
+    local targetInstance = instances[arenaId]
+    if not targetInstance then
+        print("^1[DUEL] Arène " .. arenaId .. " non trouvée^7")
+        TriggerClientEvent('chat:addMessage', source, {
+            color = {255, 0, 0},
+            multiline = true,
+            args = {"[DUEL]", "Cette arène n'existe plus !"}
+        })
+        return
+    end
+    
+    -- Vérifier que l'arène est disponible
+    if targetInstance.status ~= "waiting" or #targetInstance.players >= targetInstance.maxPlayers then
+        print("^1[DUEL] Arène " .. arenaId .. " non disponible (statut: " .. targetInstance.status .. ", joueurs: " .. #targetInstance.players .. ")^7")
+        TriggerClientEvent('chat:addMessage', source, {
+            color = {255, 0, 0},
+            multiline = true,
+            args = {"[DUEL]", "Cette arène n'est plus disponible !"}
+        })
+        return
+    end
+    
+    -- Vérifier que l'arme correspond
+    if targetInstance.weapon ~= weapon then
+        print("^1[DUEL] Arme incompatible pour l'arène " .. arenaId .. " (attendu: " .. targetInstance.weapon .. ", reçu: " .. weapon .. ")^7")
+        TriggerClientEvent('chat:addMessage', source, {
+            color = {255, 0, 0},
+            multiline = true,
+            args = {"[DUEL]", "Arme incompatible avec cette arène !"}
+        })
+        return
+    end
+    
+    -- Ajouter le joueur à l'instance
+    local success, message = addPlayerToInstance(arenaId, source)
+    if not success then
+        print("^1[DUEL] Impossible d'ajouter le joueur à l'instance: " .. message .. "^7")
+        return
+    end
+    
+    print("^2[DUEL] Joueur " .. source .. " ajouté à l'arène " .. arenaId .. "^7")
+    
+    -- Téléporter le joueur vers l'arène
+    TriggerClientEvent('duel:instanceCreated', source, arenaId, weapon, targetInstance.arena)
+    
+    -- Notifier le créateur qu'un adversaire a rejoint
+    local creatorName = GetPlayerName(targetInstance.creator) or "Joueur " .. targetInstance.creator
+    TriggerClientEvent('duel:opponentJoined', targetInstance.creator, playerName)
+    TriggerClientEvent('duel:opponentJoined', source, creatorName)
+    
+    -- Mettre à jour la liste des arènes disponibles pour tous
+    local availableArenas = getAvailableArenas()
+    TriggerClientEvent('duel:updateAvailableArenas', -1, availableArenas)
+    
+    print("^2[DUEL] ========== FIN EVENT JOIN SPECIFIC ARENA ==========^7")
+end)
+print("^2[DUEL] Event duel:joinSpecificArena enregistré avec succès^7")
+
 -- Event pour obtenir les arènes disponibles
 RegisterNetEvent('duel:getAvailableArenas')
 AddEventHandler('duel:getAvailableArenas', function()
