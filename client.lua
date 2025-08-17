@@ -239,8 +239,22 @@ RegisterNUICallback('closeMenu', function(data, cb)
 end)
 
 RegisterNUICallback('joinArena', function(data, cb)
-    print("^2[DUEL] Callback joinArena reçu^7")
-    print("^3[DUEL] Données reçues: " .. json.encode(data) .. "^7")
+    print("^2[DUEL] ========== CALLBACK JOINARENA ==========^7")
+    print("^3[DUEL] Données brutes reçues: " .. tostring(data) .. "^7")
+    
+    if data then
+        print("^3[DUEL] Type de data: " .. type(data) .. "^7")
+        if type(data) == "table" then
+            print("^3[DUEL] Contenu de data:^7")
+            for k, v in pairs(data) do
+                print("^3[DUEL]   " .. tostring(k) .. " = " .. tostring(v) .. "^7")
+            end
+        end
+        print("^3[DUEL] data.weapon = " .. tostring(data.weapon) .. "^7")
+        print("^3[DUEL] data.map = " .. tostring(data.map) .. "^7")
+    else
+        print("^1[DUEL] ERREUR: data est nil !^7")
+    end
     
     if not data.weapon or not data.map then
         print("^1[DUEL] Données manquantes - weapon: " .. tostring(data.weapon) .. ", map: " .. tostring(data.map) .. "^7")
@@ -248,12 +262,15 @@ RegisterNUICallback('joinArena', function(data, cb)
         return
     end
     
+    print("^2[DUEL] Validation OK, fermeture du menu^7")
     -- Fermer le menu
     closeDuelMenu()
     
+    print("^2[DUEL] Envoi vers le serveur: weapon=" .. tostring(data.weapon) .. ", map=" .. tostring(data.map) .. "^7")
     -- Demander au serveur de créer une instance
     TriggerServerEvent('duel:joinArena', data.weapon, data.map)
     
+    print("^2[DUEL] Callback terminé avec succès^7")
     cb('ok')
 end)
 

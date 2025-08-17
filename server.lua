@@ -50,7 +50,11 @@ AddEventHandler('duel:joinArena', function(weapon, map)
     local source = source
     local playerName = GetPlayerName(source)
     
-    print("^2[DUEL] " .. playerName .. " (ID: " .. source .. ") rejoint l'arène '" .. tostring(map) .. "' avec '" .. tostring(weapon) .. "'^7")
+    print("^2[DUEL] ========== EVENT JOINARENA SERVEUR ==========^7")
+    print("^2[DUEL] Joueur: " .. playerName .. " (ID: " .. source .. ")^7")
+    print("^2[DUEL] Paramètres reçus:^7")
+    print("^2[DUEL]   weapon = " .. tostring(weapon) .. " (type: " .. type(weapon) .. ")^7")
+    print("^2[DUEL]   map = " .. tostring(map) .. " (type: " .. type(map) .. ")^7")
     
     -- Vérifier que les paramètres sont valides
     if not weapon or not map then
@@ -58,21 +62,29 @@ AddEventHandler('duel:joinArena', function(weapon, map)
         return
     end
     
+    print("^2[DUEL] Paramètres valides, vérification instance existante^7")
+    
     -- Vérifier si le joueur est déjà dans une instance
     local currentInstanceId, currentInstance = getPlayerInstance(source)
     if currentInstanceId then
         print("^1[DUEL] Joueur " .. source .. " déjà dans l'instance " .. currentInstanceId .. "^7")
         -- Supprimer l'ancienne instance et en créer une nouvelle
         deleteInstance(currentInstanceId)
+    else
+        print("^2[DUEL] Aucune instance existante pour le joueur^7")
     end
     
+    print("^2[DUEL] Création de la nouvelle instance^7")
     -- Créer une nouvelle instance privée
     local instanceId = createInstance(source, map)
     
     print("^2[DUEL] Instance " .. instanceId .. " créée avec succès pour " .. playerName .. "^7")
+    print("^2[DUEL] Envoi de l'event duel:instanceCreated au client^7")
     
     -- Confirmer au client
     TriggerClientEvent('duel:instanceCreated', source, instanceId, weapon, map)
+    
+    print("^2[DUEL] ========== FIN EVENT JOINARENA ==========^7")
 end)
 
 -- Event pour quitter une arène (supprimer l'instance)

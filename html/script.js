@@ -106,22 +106,37 @@ document.addEventListener('DOMContentLoaded', function() {
     const joinBtn = document.getElementById('joinBtn');
     if (joinBtn) {
         joinBtn.addEventListener('click', function() {
+            console.log('[DUEL] Bouton rejoindre cliqué');
+            console.log('[DUEL] selectedWeapon:', selectedWeapon);
+            console.log('[DUEL] selectedMap:', selectedMap);
+            
             if (selectedWeapon && selectedMap) {
                 console.log('[DUEL] Rejoindre l\'arène avec:', selectedWeapon, selectedMap);
+                
+                const payload = {
+                    weapon: selectedWeapon,
+                    map: selectedMap
+                };
+                console.log('[DUEL] Payload envoyé:', JSON.stringify(payload));
+                
                 fetch(`https://duel_1v1/joinArena`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        weapon: selectedWeapon,
-                        map: selectedMap
-                    })
+                    body: JSON.stringify(payload)
                 }).then(response => {
-                    console.log('[DUEL] Réponse rejoindre arène:', response);
+                    console.log('[DUEL] Réponse rejoindre arène - Status:', response.status);
+                    return response.text();
+                }).then(text => {
+                    console.log('[DUEL] Réponse texte:', text);
                 }).catch(err => {
                     console.log('[DUEL] Erreur rejoindre arène:', err);
                 });
+            } else {
+                console.log('[DUEL] Impossible de rejoindre - Sélections manquantes');
+                console.log('[DUEL] selectedWeapon:', selectedWeapon);
+                console.log('[DUEL] selectedMap:', selectedMap);
             }
         });
     }
