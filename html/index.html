@@ -90,6 +90,25 @@
                 <button id="closeBtn" class="btn btn-close">FERMER</button>
             </div>
         </div>
+        
+        <!-- Modal pour la liste des arènes -->
+        <div id="arenaListModal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>ARÈNES DISPONIBLES</h2>
+                    <button id="closeModalBtn" class="btn-close-modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div id="arenaList" class="arena-list">
+                        <!-- Les arènes seront ajoutées ici dynamiquement -->
+                    </div>
+                    <div id="noArenas" class="no-arenas hidden">
+                        <p>Aucune arène disponible pour le moment.</p>
+                        <p>Créez votre propre arène !</p>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="script.js"></script>
