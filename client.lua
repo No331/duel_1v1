@@ -6,8 +6,6 @@ local originalCoords = nil
 local currentArena = nil
 local selectedWeapon = nil
 local currentRounds = {
-    player1Score = 0,
-    player2Score = 0,
     currentRound = 0,
     maxRounds = 5,
     showRoundCounter = false
@@ -144,19 +142,7 @@ Citizen.CreateThread(function()
                     SetTextWrap(0.0, 0.95)
                     SetTextEntry("STRING")
                     
-                    -- Afficher le score selon ma perspective
-                    local playerId = PlayerId()
-                    local scoreText = ""
-                    if playerId and currentRounds.player1Id and playerId == currentRounds.player1Id then
-                        -- Je suis joueur 1
-                        scoreText = "MANCHE " .. currentRounds.currentRound .. "/" .. currentRounds.maxRounds .. "~n~MON SCORE: " .. currentRounds.player1Score .. "-" .. currentRounds.player2Score
-                    elseif playerId and currentRounds.player2Id and playerId == currentRounds.player2Id then
-                        -- Je suis joueur 2
-                        scoreText = "MANCHE " .. currentRounds.currentRound .. "/" .. currentRounds.maxRounds .. "~n~MON SCORE: " .. currentRounds.player2Score .. "-" .. currentRounds.player1Score
-                    else
-                        -- Fallback
-                        scoreText = "MANCHE " .. currentRounds.currentRound .. "/" .. currentRounds.maxRounds .. "~n~SCORE: " .. currentRounds.player1Score .. "-" .. currentRounds.player2Score
-                    end
+                    local scoreText = "MANCHE " .. currentRounds.currentRound .. "/" .. currentRounds.maxRounds
                     
                     AddTextComponentString(scoreText)
                     DrawText(0.95, 0.85)
@@ -425,6 +411,22 @@ Citizen.CreateThread(function()
     end
 end)
 
+-- Event pour heal le joueur au début d'une nouvelle manche
+RegisterNetEvent('duel:healPlayer')
+AddEventHandler('duel:healPlayer', function()
+    if inDuel then
+        local playerPed = PlayerPedId()
+        SetEntityHealth(playerPed, 200)
+        SetPedArmour(playerPed, 100)
+        
+        TriggerEvent('chat:addMessage', {
+            color = {0, 255, 255},
+            multiline = true,
+            args = {"[DUEL]", "Nouvelle manche ! Santé et kevlar restaurés."}
+        })
+    end
+end)
+
 -- Event reçu quand une instance est créée
 RegisterNetEvent('duel:instanceCreated')
 AddEventHandler('duel:instanceCreated', function(instanceId, weapon, map)
@@ -634,8 +636,6 @@ RegisterNetEvent('duel:roundResult')
 AddEventHandler('duel:roundResult', function(roundData)
     
     currentRounds = {
-        player1Score = roundData.player1Score,
-        player2Score = roundData.player2Score,
         currentRound = roundData.currentRound,
         maxRounds = roundData.maxRounds,
         showRoundCounter = true,
@@ -644,35 +644,14 @@ AddEventHandler('duel:roundResult', function(roundData)
     }
     
     local playerId = PlayerId()
-    local playerPed = PlayerPedId()
     
-    -- HEAL + KEVLAR pour TOUS LES JOUEURS à la fin de chaque manche (avec délai)
-    Citizen.SetTimeout(1000, function()
-        if inDuel then
-            SetEntityHealth(playerPed, 200)
-            SetPedArmour(playerPed, 100)
-        end
-    end)
+    -- Message de manche
+    local roundMessage = roundData.killerName .. " gagne la manche " .. roundData.currentRound .. " !"
     
-    -- Déterminer qui je suis et afficher le bon message
-    local amIPlayer1 = (playerId == roundData.player1Id)
-    local roundWinner = ""
-    local roundMessage = ""
-    
-    if playerId == roundData.player1Id then
-        -- Je suis le joueur 1
-        if roundData.killerPlayerId == playerId then
-            roundMessage = "🏆 Vous gagnez la manche " .. roundData.currentRound .. " ! Score: " .. roundData.player1Score .. "-" .. roundData.player2Score
-        else
-            roundMessage = "💀 Vous perdez la manche " .. roundData.currentRound .. " ! Score: " .. roundData.player1Score .. "-" .. roundData.player2Score
-        end
+    if roundData.killerPlayerId == playerId then
+        roundMessage = "🏆 Vous gagnez la manche " .. roundData.currentRound .. " !"
     else
-        -- Je suis le joueur 2
-        if roundData.killerPlayerId == playerId then
-            roundMessage = "🏆 Vous gagnez la manche " .. roundData.currentRound .. " ! Score: " .. roundData.player2Score .. "-" .. roundData.player1Score
-        else
-            roundMessage = "💀 Vous perdez la manche " .. roundData.currentRound .. " ! Score: " .. roundData.player2Score .. "-" .. roundData.player1Score
-        end
+        roundMessage = "💀 Vous perdez la manche " .. roundData.currentRound .. " !"
     end
     
     TriggerEvent('chat:addMessage', {
@@ -685,38 +664,10 @@ AddEventHandler('duel:roundResult', function(roundData)
     if roundData.duelFinished then
         currentRounds.showRoundCounter = false
         
-        local finalMessage = ""
-        local finalColor = {255, 255, 0} -- Jaune par défaut (égalité)
-        
-        if roundData.winner then
-            if roundData.winner == playerId then
-                -- Je gagne
-                if playerId == roundData.player1Id then
-                    finalMessage = "🏆 VICTOIRE FINALE ! Vous avez gagné le duel " .. roundData.player1Score .. "-" .. roundData.player2Score .. " !"
-                else
-                    finalMessage = "🏆 VICTOIRE FINALE ! Vous avez gagné le duel " .. roundData.player2Score .. "-" .. roundData.player1Score .. " !"
-                end
-                finalColor = {0, 255, 0} -- Vert
-            else
-                -- Je perds
-                if playerId == roundData.player1Id then
-                    finalMessage = "💀 DÉFAITE FINALE ! " .. roundData.winnerName .. " a gagné " .. roundData.player2Score .. "-" .. roundData.player1Score
-                else
-                    finalMessage = "💀 DÉFAITE FINALE ! " .. roundData.winnerName .. " a gagné " .. roundData.player1Score .. "-" .. roundData.player2Score
-                end
-                finalColor = {255, 0, 0} -- Rouge
-            end
-        else
-            -- Égalité
-            if playerId == roundData.player1Id then
-                finalMessage = "🤝 ÉGALITÉ ! Duel terminé " .. roundData.player1Score .. "-" .. roundData.player2Score
-            else
-                finalMessage = "🤝 ÉGALITÉ ! Duel terminé " .. roundData.player2Score .. "-" .. roundData.player1Score
-            end
-        end
+        local finalMessage = "🏁 DUEL TERMINÉ ! 5 manches complétées."
         
         TriggerEvent('chat:addMessage', {
-            color = finalColor,
+            color = {255, 255, 0},
             multiline = true,
             args = {"[DUEL]", finalMessage}
         })

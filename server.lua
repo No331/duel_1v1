@@ -22,11 +22,9 @@ function createInstance(playerId, arenaType, weapon)
         status = "waiting", -- waiting, full, active
         created = os.time(),
         rounds = {
-            player1Score = 0,
-            player2Score = 0,
             currentRound = 0,
             maxRounds = 5,
-            roundsToWin = ROUNDS_TO_WIN
+            roundsToWin = 5
         }
     }
     
@@ -123,69 +121,43 @@ function handlePlayerDeath(instanceId, deadPlayerId, killerPlayerId)
     -- Incrémenter le round
     instance.rounds.currentRound = instance.rounds.currentRound + 1
     
-    -- Incrémenter le score du tueur selon son index dans la liste
-    if killerPlayerId == player1Id then
-        instance.rounds.player1Score = instance.rounds.player1Score + 1
-    elseif killerPlayerId == player2Id then
-        instance.rounds.player2Score = instance.rounds.player2Score + 1
-    end
-    
-    -- Vérifier si quelqu'un a gagné
-    local winner = nil
-    local winnerName = ""
-    local loserName = ""
+    -- Vérifier si on a atteint 5 manches
     local duelFinished = false
     
-    -- Vérifier si quelqu'un a gagné (3 manches) OU si on a atteint 5 manches
-    if instance.rounds.player1Score >= ROUNDS_TO_WIN then
-        winner = instance.players[1]
-        winnerName = GetPlayerName(instance.players[1]) or "Joueur " .. instance.players[1]
-        loserName = GetPlayerName(instance.players[2]) or "Joueur " .. instance.players[2]
-        duelFinished = true
-    elseif instance.rounds.player2Score >= ROUNDS_TO_WIN then
-        winner = instance.players[2]
-        winnerName = GetPlayerName(instance.players[2]) or "Joueur " .. instance.players[2]
-        loserName = GetPlayerName(instance.players[1]) or "Joueur " .. instance.players[1]
-        duelFinished = true
-    elseif instance.rounds.currentRound >= MAX_ROUNDS then
-        -- Si on a fait 5 manches, celui avec le plus de points gagne
-        if instance.rounds.player1Score > instance.rounds.player2Score then
-            winner = instance.players[1]
-            winnerName = GetPlayerName(instance.players[1]) or "Joueur " .. instance.players[1]
-            loserName = GetPlayerName(instance.players[2]) or "Joueur " .. instance.players[2]
-        elseif instance.rounds.player2Score > instance.rounds.player1Score then
-            winner = instance.players[2]
-            winnerName = GetPlayerName(instance.players[2]) or "Joueur " .. instance.players[2]
-            loserName = GetPlayerName(instance.players[1]) or "Joueur " .. instance.players[1]
-        else
-            -- Égalité - pas de gagnant
-            winner = nil
-            winnerName = "Égalité"
-        end
+    if instance.rounds.currentRound >= MAX_ROUNDS then
         duelFinished = true
     end
     
-    -- Envoyer les scores aux joueurs
+    local killerName = GetPlayerName(killerPlayerId) or "Joueur " .. killerPlayerId
+    local deadName = GetPlayerName(deadPlayerId) or "Joueur " .. deadPlayerId
+    
+    -- Envoyer les résultats aux joueurs
     for _, playerId in ipairs(instance.players) do
         TriggerClientEvent('duel:roundResult', playerId, {
-            player1Score = instance.rounds.player1Score,
-            player2Score = instance.rounds.player2Score,
             currentRound = instance.rounds.currentRound,
             maxRounds = MAX_ROUNDS,
-            winner = winner,
-            winnerName = winnerName,
-            loserName = loserName,
             killerPlayerId = killerPlayerId,
+            killerName = killerName,
             deadPlayerId = deadPlayerId,
+            deadName = deadName,
             duelFinished = duelFinished,
             player1Id = player1Id,
             player2Id = player2Id
         })
     end
     
-    -- Si quelqu'un a gagné, terminer le duel
+    -- Si on n'a pas fini, heal + kevlar les deux joueurs au début de la prochaine manche
+    if not duelFinished then
+        -- Attendre 2 secondes puis heal + kevlar les deux joueurs
+        Citizen.SetTimeout(2000, function()
+            for _, playerId in ipairs(instance.players) do
+                TriggerClientEvent('duel:healPlayer', playerId)
+            end
+        end)
+    end
+    
+    -- Si le duel est fini, terminer après 3 secondes
     if duelFinished then
-        -- Attendre 3 secondes puis supprimer l'instance
         Citizen.SetTimeout(3000, function()
             deleteInstance(instanceId)
         end)
