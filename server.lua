@@ -101,7 +101,6 @@ end
 
 -- Fonction pour gérer la mort d'un joueur
 function handlePlayerDeath(instanceId, deadPlayerId, killerPlayerId)
-    
     local instance = instances[instanceId]
     if not instance then return end
     
@@ -121,12 +120,50 @@ function handlePlayerDeath(instanceId, deadPlayerId, killerPlayerId)
     -- Incrémenter le round
     instance.rounds.currentRound = instance.rounds.currentRound + 1
     
-    -- Vérifier si on a atteint 5 manches
-    local duelFinished = false
+    local killerName = GetPlayerName(killerPlayerId) or "Joueur " .. killerPlayerId
+    local deadName = GetPlayerName(deadPlayerId) or "Joueur " .. deadPlayerId
     
-    if instance.rounds.currentRound >= MAX_ROUNDS then
-        duelFinished = true
+    -- Message de manche
+    local roundMessage = killerName .. " gagne la manche " .. instance.rounds.currentRound .. "/5 !"
+    
+    -- Envoyer le message aux deux joueurs
+    for _, playerId in ipairs(instance.players) do
+        TriggerClientEvent('chat:addMessage', playerId, {
+            color = {255, 255, 0},
+            multiline = true,
+            args = {"[DUEL]", roundMessage}
+        })
+        
+        -- Mettre à jour le compteur de manches côté client
+        TriggerClientEvent('duel:updateRoundCounter', playerId, instance.rounds.currentRound, MAX_ROUNDS)
     end
+    
+    -- Vérifier si on a atteint 5 manches
+    if instance.rounds.currentRound >= MAX_ROUNDS then
+        -- Duel terminé
+        local finalMessage = "🏁 DUEL TERMINÉ ! " .. killerName .. " remporte le duel après 5 manches !"
+        
+        for _, playerId in ipairs(instance.players) do
+            TriggerClientEvent('chat:addMessage', playerId, {
+                color = {0, 255, 0},
+                multiline = true,
+                args = {"[DUEL]", finalMessage}
+            })
+        end
+        
+        -- Supprimer l'instance après 3 secondes
+        Citizen.SetTimeout(3000, function()
+            deleteInstance(instanceId)
+        end)
+    else
+        -- Continuer le duel - heal les deux joueurs après 2 secondes
+        Citizen.SetTimeout(2000, function()
+            for _, playerId in ipairs(instance.players) do
+                TriggerClientEvent('duel:healPlayer', playerId)
+            end
+        end)
+    end
+end
     
     local killerName = GetPlayerName(killerPlayerId) or "Joueur " .. killerPlayerId
     local deadName = GetPlayerName(deadPlayerId) or "Joueur " .. deadPlayerId
@@ -167,10 +204,9 @@ end
 -- ENREGISTREMENT DES EVENTS
 
 -- Event pour signaler une mort
+RegisterServerEvent('duel:playerDied')
 AddEventHandler('duel:playerDied', function(killerPlayerId)
     local source = source
-    local deadPlayerName = GetPlayerName(source) or "Joueur " .. source
-    local killerPlayerName = GetPlayerName(killerPlayerId) or "Joueur " .. killerPlayerId
     
     -- Trouver l'instance du joueur mort
     local instanceId, instance = getPlayerInstance(source)

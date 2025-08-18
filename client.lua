@@ -499,9 +499,10 @@ end)
 -- Event reçu quand un adversaire rejoint
 RegisterNetEvent('duel:opponentJoined')
 AddEventHandler('duel:opponentJoined', function(opponentName)
-    
     -- Activer l'affichage du compteur de manches
     currentRounds.showRoundCounter = true
+    currentRounds.currentRound = 0
+    currentRounds.maxRounds = 5
     
     TriggerEvent('chat:addMessage', {
         color = {0, 255, 0},
@@ -610,52 +611,10 @@ AddEventHandler('duel:opponentJoined', function(opponentName)
     end)
 end)
 
--- Event reçu pour les résultats de manche
-RegisterNetEvent('duel:roundResult')
-AddEventHandler('duel:roundResult', function(roundData)
-    
-    currentRounds = {
-        currentRound = roundData.currentRound,
-        maxRounds = roundData.maxRounds,
-        showRoundCounter = true,
-        player1Id = roundData.player1Id,
-        player2Id = roundData.player2Id
-    }
-    
-    local playerId = PlayerId()
-    
-    -- Message de manche
-    local roundMessage = roundData.killerName .. " gagne la manche " .. roundData.currentRound .. " !"
-    
-    if roundData.killerPlayerId == playerId then
-        roundMessage = "🏆 Vous gagnez la manche " .. roundData.currentRound .. " !"
-    else
-        roundMessage = "💀 Vous perdez la manche " .. roundData.currentRound .. " !"
-    end
-    
-    TriggerEvent('chat:addMessage', {
-        color = roundData.killerPlayerId == playerId and {0, 255, 0} or {255, 165, 0},
-        multiline = true,
-        args = {"[DUEL]", roundMessage}
-    })
-    
-    -- Si le duel est terminé
-    if roundData.duelFinished then
-        currentRounds.showRoundCounter = false
-        
-        local finalMessage = "🏁 DUEL TERMINÉ ! 5 manches complétées."
-        
-        TriggerEvent('chat:addMessage', {
-            color = {255, 255, 0},
-            multiline = true,
-            args = {"[DUEL]", finalMessage}
-        })
-        
-        -- Quitter automatiquement après 3 secondes
-        Citizen.SetTimeout(3000, function()
-            if inDuel then
-                quitDuel()
-            end
-        end)
-    end
+-- Event pour mettre à jour le compteur de manches
+RegisterNetEvent('duel:updateRoundCounter')
+AddEventHandler('duel:updateRoundCounter', function(currentRound, maxRounds)
+    currentRounds.currentRound = currentRound
+    currentRounds.maxRounds = maxRounds
+    currentRounds.showRoundCounter = true
 end)
