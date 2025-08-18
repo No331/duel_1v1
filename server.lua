@@ -5,7 +5,8 @@ local instances = {}
 local nextInstanceId = 1
 
 -- Configuration du système de manches
-local ROUNDS_TO_WIN = 3 -- Premier à 3 manches gagne (sur 5 manches max)
+local MAX_ROUNDS = 5 -- Maximum 5 manches
+local ROUNDS_TO_WIN = 3 -- Premier à 3 manches gagne
 
 -- Fonction pour créer une nouvelle instance
 function createInstance(playerId, arenaType, weapon)
@@ -110,6 +111,9 @@ function handlePlayerDeath(instanceId, deadPlayerId, killerPlayerId)
     local instance = instances[instanceId]
     if not instance then return end
     
+    -- Incrémenter d'abord le round
+    instance.rounds.currentRound = instance.rounds.currentRound + 1
+    
     -- Incrémenter le score du tueur
     if killerPlayerId == instance.players[1] then
         instance.rounds.player1Score = instance.rounds.player1Score + 1
@@ -117,21 +121,39 @@ function handlePlayerDeath(instanceId, deadPlayerId, killerPlayerId)
         instance.rounds.player2Score = instance.rounds.player2Score + 1
     end
     
-    instance.rounds.currentRound = instance.rounds.currentRound + 1
-    
     -- Vérifier si quelqu'un a gagné
     local winner = nil
     local winnerName = ""
     local loserName = ""
+    local duelFinished = false
     
-    if instance.rounds.player1Score >= instance.rounds.roundsToWin then
+    -- Vérifier si quelqu'un a gagné (3 manches) OU si on a atteint 5 manches
+    if instance.rounds.player1Score >= ROUNDS_TO_WIN then
         winner = instance.players[1]
         winnerName = GetPlayerName(instance.players[1]) or "Joueur " .. instance.players[1]
         loserName = GetPlayerName(instance.players[2]) or "Joueur " .. instance.players[2]
-    elseif instance.rounds.player2Score >= instance.rounds.roundsToWin then
+        duelFinished = true
+    elseif instance.rounds.player2Score >= ROUNDS_TO_WIN then
         winner = instance.players[2]
         winnerName = GetPlayerName(instance.players[2]) or "Joueur " .. instance.players[2]
         loserName = GetPlayerName(instance.players[1]) or "Joueur " .. instance.players[1]
+        duelFinished = true
+    elseif instance.rounds.currentRound >= MAX_ROUNDS then
+        -- Si on a fait 5 manches, celui avec le plus de points gagne
+        if instance.rounds.player1Score > instance.rounds.player2Score then
+            winner = instance.players[1]
+            winnerName = GetPlayerName(instance.players[1]) or "Joueur " .. instance.players[1]
+            loserName = GetPlayerName(instance.players[2]) or "Joueur " .. instance.players[2]
+        elseif instance.rounds.player2Score > instance.rounds.player1Score then
+            winner = instance.players[2]
+            winnerName = GetPlayerName(instance.players[2]) or "Joueur " .. instance.players[2]
+            loserName = GetPlayerName(instance.players[1]) or "Joueur " .. instance.players[1]
+        else
+            -- Égalité - pas de gagnant
+            winner = nil
+            winnerName = "Égalité"
+        end
+        duelFinished = true
     end
     
     -- Envoyer les scores aux joueurs
@@ -140,21 +162,26 @@ function handlePlayerDeath(instanceId, deadPlayerId, killerPlayerId)
             player1Score = instance.rounds.player1Score,
             player2Score = instance.rounds.player2Score,
             currentRound = instance.rounds.currentRound,
-            maxRounds = instance.rounds.maxRounds,
+            maxRounds = MAX_ROUNDS,
             winner = winner,
             winnerName = winnerName,
             loserName = loserName,
             killerPlayerId = killerPlayerId,
-            deadPlayerId = deadPlayerId
+            deadPlayerId = deadPlayerId,
+            duelFinished = duelFinished
         })
     end
     
     -- Si quelqu'un a gagné, terminer le duel
-    if winner then
-        print("^2[DUEL] " .. winnerName .. " a gagné le duel " .. instance.rounds.player1Score .. "-" .. instance.rounds.player2Score .. "^7")
+    if duelFinished then
+        if winner then
+            print("^2[DUEL] " .. winnerName .. " a gagné le duel " .. instance.rounds.player1Score .. "-" .. instance.rounds.player2Score .. "^7")
+        else
+            print("^3[DUEL] Duel terminé en égalité " .. instance.rounds.player1Score .. "-" .. instance.rounds.player2Score .. "^7")
+        end
         
-        -- Attendre 5 secondes puis supprimer l'instance
-        Citizen.SetTimeout(5000, function()
+        -- Attendre 3 secondes puis supprimer l'instance
+        Citizen.SetTimeout(3000, function()
             deleteInstance(instanceId)
         end)
     end
