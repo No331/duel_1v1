@@ -220,6 +220,7 @@ Citizen.CreateThread(function()
                 
                 -- Signaler la mort au serveur
                 print("^1[DUEL] Envoi de la mort au serveur - Killer: " .. tostring(killerPlayerId) .. "^7")
+                print("^1[DUEL] Mon ID: " .. PlayerId() .. ", Instance: " .. tostring(currentInstanceId) .. "^7")
                 TriggerServerEvent('duel:playerDied', killerPlayerId)
                 
                 -- Vérifier que l'event est bien envoyé

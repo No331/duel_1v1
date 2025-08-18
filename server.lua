@@ -1,5 +1,8 @@
 print("^2[DUEL] Server script chargé^7")
 
+-- Debug pour vérifier l'enregistrement des events
+print("^2[DUEL] Enregistrement de l'event duel:playerDied^7")
+
 -- Système d'instances
 local instances = {}
 local nextInstanceId = 1
@@ -237,23 +240,34 @@ function handlePlayerDeath(instanceId, deadPlayerId, killerPlayerId)
 end
 
 -- Event pour signaler une mort
+print("^2[DUEL] === ENREGISTREMENT EVENT PLAYERDIED ===^7")
 RegisterNetEvent('duel:playerDied')
 AddEventHandler('duel:playerDied', function(killerPlayerId)
     local source = source
     local deadPlayerName = GetPlayerName(source) or "Joueur " .. source
     local killerPlayerName = GetPlayerName(killerPlayerId) or "Joueur " .. killerPlayerId
     
-    print("^1[DUEL] EVENT RECU: " .. deadPlayerName .. " (ID:" .. source .. ") tué par " .. killerPlayerName .. " (ID:" .. tostring(killerPlayerId) .. ")^7")
+    print("^2[DUEL] ========== EVENT PLAYERDIED RECU ==========^7")
+    print("^2[DUEL] Source (mort): " .. source .. " (" .. deadPlayerName .. ")^7")
+    print("^2[DUEL] Killer: " .. tostring(killerPlayerId) .. " (" .. killerPlayerName .. ")^7")
     
     -- Trouver l'instance du joueur mort
     local instanceId, instance = getPlayerInstance(source)
     if instanceId and instance then
-        print("^2[DUEL] Instance trouvée: " .. instanceId .. " avec " .. #instance.players .. " joueurs^7")
+        print("^2[DUEL] Instance " .. instanceId .. " trouvée avec " .. #instance.players .. " joueurs^7")
+        print("^2[DUEL] Joueurs dans l'instance: " .. table.concat(instance.players, ", ") .. "^7")
         handlePlayerDeath(instanceId, source, killerPlayerId)
     else
         print("^1[DUEL] ERREUR: Aucune instance trouvée pour le joueur mort " .. source .. "^7")
+        -- Debug: lister toutes les instances
+        print("^1[DUEL] Instances actives:^7")
+        for id, inst in pairs(instances) do
+            print("^1[DUEL]   Instance " .. id .. ": joueurs " .. table.concat(inst.players, ", ") .. "^7")
+        end
     end
+    print("^2[DUEL] ========== FIN EVENT PLAYERDIED ==========^7")
 end)
+print("^2[DUEL] Event duel:playerDied enregistré avec succès^7")
 
 -- Commande de test pour vérifier la communication client-serveur
 print("^2[DUEL] Enregistrement de la commande testduel^7")
@@ -306,6 +320,7 @@ AddEventHandler('duel:createArena', function(weapon, map)
     local instanceId = createInstance(source, map, weapon)
     
     print("^2[DUEL] Instance " .. instanceId .. " créée avec succès pour " .. playerName .. "^7")
+    print("^2[DUEL] Joueurs dans la nouvelle instance: " .. table.concat(instances[instanceId].players, ", ") .. "^7")
     print("^2[DUEL] Envoi de l'event duel:instanceCreated au client^7")
     
     -- Confirmer au client
