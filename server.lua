@@ -111,20 +111,42 @@ function handlePlayerDeath(instanceId, deadPlayerId, killerPlayerId)
     local instance = instances[instanceId]
     if not instance then return end
     
-    -- Incrémenter le round
+    -- Vérifier qu'on a bien 2 joueurs
+    if #instance.players < 2 then
+        print("^1[DUEL] Pas assez de joueurs dans l'instance^7")
+        return
+    end
+    
+    -- Incrémenter le round seulement si on a un tueur valide
+    if not killerPlayerId or killerPlayerId == deadPlayerId then
+        print("^1[DUEL] Mort sans tueur valide, pas de point marqué^7")
+        return
+    end
+    
     instance.rounds.currentRound = instance.rounds.currentRound + 1
     
     -- Déterminer qui est le joueur 1 et qui est le joueur 2
     local player1Id = instance.players[1]
     local player2Id = instance.players[2]
     
+    print("^3[DUEL] === ANALYSE DE LA MANCHE ===^7")
+    print("^3[DUEL] Joueur 1 (créateur): " .. player1Id .. "^7")
+    print("^3[DUEL] Joueur 2: " .. player2Id .. "^7")
+    print("^3[DUEL] Tueur: " .. killerPlayerId .. "^7")
+    print("^3[DUEL] Mort: " .. deadPlayerId .. "^7")
+    
     -- Incrémenter le score du tueur selon son index dans la liste
-    if killerPlayerId == instance.players[1] then
+    if killerPlayerId == player1Id then
         instance.rounds.player1Score = instance.rounds.player1Score + 1
-        print("^2[DUEL] Joueur 1 (" .. killerPlayerId .. ") marque un point. Score: " .. instance.rounds.player1Score .. "-" .. instance.rounds.player2Score .. "^7")
-    elseif killerPlayerId == instance.players[2] then
+        print("^2[DUEL] JOUEUR 1 (" .. GetPlayerName(player1Id) .. ") gagne la manche " .. instance.rounds.currentRound .. " !^7")
+        print("^2[DUEL] Score actuel: " .. instance.rounds.player1Score .. "-" .. instance.rounds.player2Score .. "^7")
+    elseif killerPlayerId == player2Id then
         instance.rounds.player2Score = instance.rounds.player2Score + 1
-        print("^2[DUEL] Joueur 2 (" .. killerPlayerId .. ") marque un point. Score: " .. instance.rounds.player1Score .. "-" .. instance.rounds.player2Score .. "^7")
+        print("^2[DUEL] JOUEUR 2 (" .. GetPlayerName(player2Id) .. ") gagne la manche " .. instance.rounds.currentRound .. " !^7")
+        print("^2[DUEL] Score actuel: " .. instance.rounds.player1Score .. "-" .. instance.rounds.player2Score .. "^7")
+    else
+        print("^1[DUEL] ERREUR: Le tueur n'est ni joueur 1 ni joueur 2^7")
+        return
     end
     
     -- Vérifier si quelqu'un a gagné
