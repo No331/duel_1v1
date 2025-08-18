@@ -203,34 +203,8 @@ end
 
 -- ENREGISTREMENT DES EVENTS
 
--- Event pour signaler une mort
-RegisterServerEvent('duel:playerDied')
-AddEventHandler('duel:playerDied', function(killerPlayerId)
-    local source = source
-    
-    -- Trouver l'instance du joueur mort
-    local instanceId, instance = getPlayerInstance(source)
-    if instanceId and instance then
-        handlePlayerDeath(instanceId, source, killerPlayerId)
-    end
-end)
-
-RegisterNetEvent('duel:playerDied')
-
--- Commande de test pour vérifier la communication client-serveur
-RegisterCommand('testduel', function(source, args, rawCommand)
-    local playerName = GetPlayerName(source) or "Joueur " .. source
-    
-    if source ~= 0 then
-        TriggerClientEvent('chat:addMessage', source, {
-            color = {0, 255, 0},
-            multiline = true,
-            args = {"[DUEL]", "Communication serveur OK !"}
-        })
-    end
-end, false)
-
--- Event pour rejoindre une arène (créer une instance)
+-- Event pour créer une arène
+RegisterNetEvent('duel:createArena')
 AddEventHandler('duel:createArena', function(weapon, map)
     local source = source
     local playerName = GetPlayerName(source) or "Joueur " .. source
@@ -256,57 +230,8 @@ AddEventHandler('duel:createArena', function(weapon, map)
     TriggerClientEvent('duel:updateAvailableArenas', -1, availableArenas)
 end)
 
-RegisterNetEvent('duel:createArena')
-
--- Event pour rejoindre une arène existante
-AddEventHandler('duel:joinArena', function(weapon)
-    local source = source
-    local playerName = GetPlayerName(source) or "Joueur " .. source
-    
-    -- Vérifier si le joueur est déjà dans une instance
-    local currentInstanceId, currentInstance = getPlayerInstance(source)
-    if currentInstanceId then return end
-    
-    -- Trouver une arène disponible avec la même arme
-    local targetInstanceId = nil
-    for instanceId, instance in pairs(instances) do
-        if instance.status == "waiting" and instance.weapon == weapon and #instance.players < instance.maxPlayers then
-            targetInstanceId = instanceId
-            break
-        end
-    end
-    
-    if not targetInstanceId then
-        TriggerClientEvent('chat:addMessage', source, {
-            color = {255, 0, 0},
-            multiline = true,
-            args = {"[DUEL]", "Aucune arène disponible avec cette arme. Créez votre propre arène !"}
-        })
-        return
-    end
-    
-    -- Ajouter le joueur à l'instance
-    local success, message = addPlayerToInstance(targetInstanceId, source)
-    if not success then return end
-    
-    local instance = instances[targetInstanceId]
-    
-    -- Téléporter le joueur vers l'arène
-    TriggerClientEvent('duel:instanceCreated', source, targetInstanceId, weapon, instance.arena)
-    
-    -- Notifier le créateur qu'un adversaire a rejoint
-    local creatorName = GetPlayerName(instance.creator) or "Joueur " .. instance.creator
-    TriggerClientEvent('duel:opponentJoined', instance.creator, playerName)
-    TriggerClientEvent('duel:opponentJoined', source, creatorName)
-    
-    -- Mettre à jour la liste des arènes disponibles pour tous
-    local availableArenas = getAvailableArenas()
-    TriggerClientEvent('duel:updateAvailableArenas', -1, availableArenas)
-end)
-
-RegisterNetEvent('duel:joinArena')
-
 -- Event pour rejoindre une arène spécifique
+RegisterNetEvent('duel:joinSpecificArena')
 AddEventHandler('duel:joinSpecificArena', function(arenaId, weapon)
     local source = source
     local playerName = GetPlayerName(source) or "Joueur " .. source
@@ -363,18 +288,16 @@ AddEventHandler('duel:joinSpecificArena', function(arenaId, weapon)
     TriggerClientEvent('duel:updateAvailableArenas', -1, availableArenas)
 end)
 
-RegisterNetEvent('duel:joinSpecificArena')
-
 -- Event pour obtenir les arènes disponibles
+RegisterNetEvent('duel:getAvailableArenas')
 AddEventHandler('duel:getAvailableArenas', function()
     local source = source
     local availableArenas = getAvailableArenas()
     TriggerClientEvent('duel:updateAvailableArenas', source, availableArenas)
 end)
 
-RegisterNetEvent('duel:getAvailableArenas')
-
--- Event pour quitter une arène (supprimer l'instance)
+-- Event pour quitter une arène
+RegisterNetEvent('duel:quitArena')
 AddEventHandler('duel:quitArena', function()
     local source = source
     local playerName = GetPlayerName(source) or "Joueur " .. source
@@ -387,7 +310,35 @@ AddEventHandler('duel:quitArena', function()
     end
 end)
 
-RegisterNetEvent('duel:quitArena')
+-- Event pour signaler une mort
+RegisterServerEvent('duel:playerDied')
+AddEventHandler('duel:playerDied', function(killerPlayerId)
+    local source = source
+    
+    -- Trouver l'instance du joueur mort
+    local instanceId, instance = getPlayerInstance(source)
+    if instanceId and instance then
+        handlePlayerDeath(instanceId, source, killerPlayerId)
+    end
+end)
+
+RegisterNetEvent('duel:playerDied')
+
+-- Commande de test pour vérifier la communication client-serveur
+RegisterCommand('testduel', function(source, args, rawCommand)
+    local playerName = GetPlayerName(source) or "Joueur " .. source
+    
+    if source ~= 0 then
+        TriggerClientEvent('chat:addMessage', source, {
+            color = {0, 255, 0},
+            multiline = true,
+            args = {"[DUEL]", "Communication serveur OK !"}
+        })
+    end
+end, false)
+
+-- Event pour rejoindre une arène (créer une instance)
+-- (Événements déplacés plus haut dans le fichier)
 
 -- Nettoyer les instances quand un joueur se déconnecte
 AddEventHandler('playerDropped', function(reason)
