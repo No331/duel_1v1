@@ -117,13 +117,12 @@ function handlePlayerDeath(instanceId, deadPlayerId, killerPlayerId)
         return
     end
     
-    -- Incrémenter le round seulement si on a un tueur valide
-    if not killerPlayerId or killerPlayerId == deadPlayerId then
+    -- Vérifier qu'on a un tueur valide et différent du mort
+    if not killerPlayerId or killerPlayerId == deadPlayerId or killerPlayerId == 0 then
         print("^1[DUEL] Mort sans tueur valide, pas de point marqué^7")
+        print("^1[DUEL] KillerPlayerId: " .. tostring(killerPlayerId) .. ", DeadPlayerId: " .. tostring(deadPlayerId) .. "^7")
         return
     end
-    
-    instance.rounds.currentRound = instance.rounds.currentRound + 1
     
     -- Déterminer qui est le joueur 1 et qui est le joueur 2
     local player1Id = instance.players[1]
@@ -134,6 +133,15 @@ function handlePlayerDeath(instanceId, deadPlayerId, killerPlayerId)
     print("^3[DUEL] Joueur 2: " .. player2Id .. "^7")
     print("^3[DUEL] Tueur: " .. killerPlayerId .. "^7")
     print("^3[DUEL] Mort: " .. deadPlayerId .. "^7")
+    
+    -- Vérifier que le tueur est bien un des 2 joueurs du duel
+    if killerPlayerId ~= player1Id and killerPlayerId ~= player2Id then
+        print("^1[DUEL] Le tueur n'est pas un joueur du duel^7")
+        return
+    end
+    
+    -- Incrémenter le round
+    instance.rounds.currentRound = instance.rounds.currentRound + 1
     
     -- Incrémenter le score du tueur selon son index dans la liste
     if killerPlayerId == player1Id then

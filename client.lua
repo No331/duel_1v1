@@ -187,46 +187,48 @@ end)
 
 -- Thread pour gérer la mort et le respawn automatique
 Citizen.CreateThread(function()
-    local lastHealth = 200
-    
     while true do
         if inDuel then
             local playerPed = PlayerPedId()
-            local currentHealth = GetEntityHealth(playerPed)
             
-            -- Détecter la mort (santé passe en dessous de 100)
-            if lastHealth > 100 and currentHealth <= 100 and not isWaitingForRespawn then
-                print("^1[DUEL] Joueur mort détecté^7")
+            -- Détecter la mort (santé <= 0 ou IsPedDeadOrDying)
+            if (IsPedDeadOrDying(playerPed, true) or GetEntityHealth(playerPed) <= 100) and not isWaitingForRespawn then
+                print("^1[DUEL] Joueur mort détecté - Santé: " .. GetEntityHealth(playerPed) .. "^7")
                 isWaitingForRespawn = true
                 
                 -- Trouver qui a tué le joueur
                 local killer = GetPedSourceOfDeath(playerPed)
                 local killerPlayerId = nil
                 
+                print("^1[DUEL] Killer entity: " .. tostring(killer) .. "^7")
+                
                 if killer ~= 0 and killer ~= playerPed then
+                    -- Chercher le joueur correspondant au killer
                     for i = 0, 255 do
                         if NetworkIsPlayerActive(i) then
                             local otherPed = GetPlayerPed(i)
                             if otherPed == killer then
                                 killerPlayerId = i
+                                print("^2[DUEL] Killer trouvé: Joueur " .. i .. "^7")
                                 break
                             end
                         end
                     end
+                else
+                    print("^1[DUEL] Pas de killer valide trouvé^7")
                 end
                 
                 -- Signaler la mort au serveur
-                if killerPlayerId then
-                    TriggerServerEvent('duel:playerDied', killerPlayerId)
-                end
+                print("^1[DUEL] Envoi de la mort au serveur - Killer: " .. tostring(killerPlayerId) .. "^7")
+                TriggerServerEvent('duel:playerDied', killerPlayerId)
                 
                 -- Attendre 2-3 secondes (temps de ragdoll)
                 Citizen.SetTimeout(2500, function()
-                    respawnPlayer()
+                    if inDuel then
+                        respawnPlayer()
+                    end
                 end)
             end
-            
-            lastHealth = currentHealth
         end
         
         Citizen.Wait(100)
@@ -662,10 +664,14 @@ AddEventHandler('duel:roundResult', function(roundData)
     local playerId = PlayerId()
     local playerPed = PlayerPedId()
     
-    -- HEAL + KEVLAR pour TOUS LES JOUEURS à la fin de chaque manche
-    SetEntityHealth(playerPed, 200)
-    SetPedArmour(playerPed, 100)
-    print("^2[DUEL] Heal + Kevlar appliqué au joueur " .. playerId .. "^7")
+    -- HEAL + KEVLAR pour TOUS LES JOUEURS à la fin de chaque manche (avec délai)
+    Citizen.SetTimeout(1000, function()
+        if inDuel then
+            SetEntityHealth(playerPed, 200)
+            SetPedArmour(playerPed, 100)
+            print("^2[DUEL] Heal + Kevlar appliqué au joueur " .. playerId .. "^7")
+        end
+    end)
     
     -- Déterminer qui je suis et afficher le bon message
     local amIPlayer1 = (playerId == roundData.player1Id)
