@@ -6,6 +6,13 @@ local currentInstanceId = nil
 local originalCoords = nil
 local currentArena = nil
 local selectedWeapon = nil
+local currentRounds = {
+    player1Score = 0,
+    player2Score = 0,
+    currentRound = 0,
+    maxRounds = 5
+}
+local isWaitingForRespawn = false
 
 -- Point d'interaction
 local interactionPoint = vector3(256.3, -776.82, 30.88)
@@ -15,22 +22,38 @@ local arenas = {
     aeroport = {
         center = vector3(-1037.0, -2737.0, 20.0),
         radius = 50.0,
-        name = "AEROPORT"
+        name = "AEROPORT",
+        spawns = {
+            vector3(-1050.0, -2750.0, 20.0),
+            vector3(-1024.0, -2724.0, 20.0)
+        }
     },
     ["dans l'eau"] = {
         center = vector3(-1308.0, 6636.0, 5.0),
         radius = 50.0,
-        name = "DANS L'EAU"
+        name = "DANS L'EAU",
+        spawns = {
+            vector3(-1320.0, 6650.0, 5.0),
+            vector3(-1296.0, 6622.0, 5.0)
+        }
     },
     foret = {
         center = vector3(-1617.0, 4445.0, 3.0),
         radius = 50.0,
-        name = "FORET"
+        name = "FORET",
+        spawns = {
+            vector3(-1630.0, 4460.0, 3.0),
+            vector3(-1604.0, 4430.0, 3.0)
+        }
     },
     hippie = {
         center = vector3(2450.0, 3757.0, 41.0),
         radius = 50.0,
-        name = "HIPPIE"
+        name = "HIPPIE",
+        spawns = {
+            vector3(2435.0, 3770.0, 41.0),
+            vector3(2465.0, 3744.0, 41.0)
+        }
     }
 }
 
@@ -53,9 +76,10 @@ Citizen.CreateThread(function()
         
         -- Interaction proche
         if not inDuel and distance < 3.0 then
-            SetTextComponentFormat("STRING")
-            AddTextComponentString("Appuyez sur ~INPUT_CONTEXT~ pour ouvrir le menu de duel")
-            DisplayHelpTextFromStringLabel(0, 0, 1, -1)
+            -- Affichage permanent du message E
+            BeginTextCommandDisplayHelp("STRING")
+            AddTextComponentSubstringPlayerName("Appuyez sur ~INPUT_CONTEXT~ pour ouvrir le menu de duel")
+            EndTextCommandDisplayHelp(0, false, false, -1)
             
             if IsControlJustPressed(1, 38) and not isMenuOpen then
                 print("^3[DUEL] Touche E pressée^7")
@@ -78,11 +102,18 @@ Citizen.CreateThread(function()
             if arena then
                 local distance = #(playerCoords - arena.center)
                 
-                -- Dessiner le cercle de limite
+                -- Dessiner le cercle de limite en rouge permanent et visible
                 DrawMarker(1, arena.center.x, arena.center.y, arena.center.z - 1.0,
                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                           arena.radius * 2, arena.radius * 2, 1.0,
-                          255, 0, 0, 50,
+                          255, 0, 0, 100,
+                          false, true, 2, false, nil, nil, false)
+                
+                -- Dessiner aussi un cercle au sol pour bien voir la limite
+                DrawMarker(25, arena.center.x, arena.center.y, arena.center.z,
+                          0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                          arena.radius * 2, arena.radius * 2, 2.0,
+                          255, 0, 0, 80,
                           false, true, 2, false, nil, nil, false)
                 
                 -- Si le joueur dépasse la limite
@@ -98,20 +129,22 @@ Citizen.CreateThread(function()
                 end
                 
                 -- Afficher le message pour quitter (permanent)
-                BeginTextCommandDisplayHelp("STRING")
-                AddTextComponentSubstringPlayerName("Appuyez sur ~INPUT_CONTEXT~ pour quitter le duel")
-                EndTextCommandDisplayHelp(0, false, false, -1)
+                if not isWaitingForRespawn then
+                    BeginTextCommandDisplayHelp("STRING")
+                    AddTextComponentSubstringPlayerName("Appuyez sur ~INPUT_CONTEXT~ pour quitter le duel")
+                    EndTextCommandDisplayHelp(0, false, false, -1)
+                end
             end
         end
         
-        Citizen.Wait(500)
+        Citizen.Wait(0)
     end
 end)
 
 -- Thread pour gérer la touche E pour quitter le duel
 Citizen.CreateThread(function()
     while true do
-        if inDuel then
+        if inDuel and not isWaitingForRespawn then
             if IsControlJustPressed(1, 38) then
                 print("^3[DUEL] Touche E pressée pour quitter le duel^7")
                 quitDuel()
@@ -123,64 +156,46 @@ end)
 
 -- Thread pour gérer la mort et le respawn automatique
 Citizen.CreateThread(function()
-    local wasAlive = true
+    local lastHealth = 200
     
     while true do
         if inDuel then
             local playerPed = PlayerPedId()
-            local isAlive = not IsEntityDead(playerPed)
+            local currentHealth = GetEntityHealth(playerPed)
             
-            -- Détecter le changement d'état (vivant -> mort)
-            if wasAlive and not isAlive then
-                print("^1[DUEL] Joueur mort détecté, respawn immédiat^7")
+            -- Détecter la mort (santé passe en dessous de 100)
+            if lastHealth > 100 and currentHealth <= 100 and not isWaitingForRespawn then
+                print("^1[DUEL] Joueur mort détecté^7")
+                isWaitingForRespawn = true
                 
-                -- Respawn immédiat
-                if currentArena then
-                    local arena = arenas[currentArena]
-                    
-                    if arena then
-                        -- Position de respawn aléatoire dans l'arène
-                        local spawnX = arena.center.x + math.random(-15, 15)
-                        local spawnY = arena.center.y + math.random(-15, 15)
-                        local spawnZ = arena.center.z
-                        
-                        -- Forcer la résurrection
-                        NetworkResurrectLocalPlayer(spawnX, spawnY, spawnZ, 0.0, true, false)
-                        
-                        -- Attendre que le joueur soit respawné
-                        Citizen.Wait(100)
-                        
-                        local newPed = PlayerPedId()
-                        SetEntityCoords(newPed, spawnX, spawnY, spawnZ, false, false, false, true)
-                        SetEntityHealth(newPed, 200)
-                        SetPedArmour(newPed, 0)
-                        ClearPedBloodDamage(newPed)
-                        
-                        -- Redonner l'arme avec les bonnes munitions
-                        local weapons = {
-                            pistol = "WEAPON_PISTOL",
-                            combat_pistol = "WEAPON_COMBATPISTOL",
-                            heavy_pistol = "WEAPON_HEAVYPISTOL",
-                            vintage_pistol = "WEAPON_VINTAGEPISTOL"
-                        }
-                        
-                        RemoveAllPedWeapons(newPed, true)
-                        local weaponHash = GetHashKey(weapons[selectedWeapon] or weapons.pistol)
-                        GiveWeaponToPed(newPed, weaponHash, 250, false, true)
-                        SetCurrentPedWeapon(newPed, weaponHash, true)
-                        
-                        print("^2[DUEL] Joueur respawné immédiatement dans l'arène^7")
-                        
-                        TriggerEvent('chat:addMessage', {
-                            color = {255, 165, 0},
-                            multiline = true,
-                            args = {"[DUEL]", "Respawn dans l'arène !"}
-                        })
+                -- Trouver qui a tué le joueur
+                local killer = GetPedSourceOfDeath(playerPed)
+                local killerPlayerId = nil
+                
+                if killer ~= 0 and killer ~= playerPed then
+                    for i = 0, 255 do
+                        if NetworkIsPlayerActive(i) then
+                            local otherPed = GetPlayerPed(i)
+                            if otherPed == killer then
+                                killerPlayerId = i
+                                break
+                            end
+                        end
                     end
                 end
+                
+                -- Signaler la mort au serveur
+                if killerPlayerId then
+                    TriggerServerEvent('duel:playerDied', killerPlayerId)
+                end
+                
+                -- Attendre 2-3 secondes (temps de ragdoll)
+                Citizen.SetTimeout(2500, function()
+                    respawnPlayer()
+                end)
             end
             
-            wasAlive = isAlive
+            lastHealth = currentHealth
         end
         
         Citizen.Wait(100)

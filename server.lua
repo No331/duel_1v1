@@ -4,6 +4,9 @@ print("^2[DUEL] Server script chargé^7")
 local instances = {}
 local nextInstanceId = 1
 
+-- Configuration du système de manches
+local ROUNDS_TO_WIN = 3 -- Premier à 3 manches gagne (sur 5 manches max)
+
 -- Fonction pour créer une nouvelle instance
 function createInstance(playerId, arenaType, weapon)
     local instanceId = nextInstanceId
@@ -17,7 +20,14 @@ function createInstance(playerId, arenaType, weapon)
         players = {playerId},
         maxPlayers = 2,
         status = "waiting", -- waiting, full, active
-        created = os.time()
+        created = os.time(),
+        rounds = {
+            player1Score = 0,
+            player2Score = 0,
+            currentRound = 0,
+            maxRounds = 5,
+            roundsToWin = ROUNDS_TO_WIN
+        }
     }
     
     print("^3[DUEL] Instance " .. instanceId .. " créée par le joueur " .. playerId .. " (arène: " .. arenaType .. ", arme: " .. weapon .. ")^7")
@@ -94,6 +104,77 @@ function addPlayerToInstance(instanceId, playerId)
     
     return true, "Joueur ajouté avec succès"
 end
+
+-- Fonction pour gérer la mort d'un joueur
+function handlePlayerDeath(instanceId, deadPlayerId, killerPlayerId)
+    local instance = instances[instanceId]
+    if not instance then return end
+    
+    -- Incrémenter le score du tueur
+    if killerPlayerId == instance.players[1] then
+        instance.rounds.player1Score = instance.rounds.player1Score + 1
+    elseif killerPlayerId == instance.players[2] then
+        instance.rounds.player2Score = instance.rounds.player2Score + 1
+    end
+    
+    instance.rounds.currentRound = instance.rounds.currentRound + 1
+    
+    -- Vérifier si quelqu'un a gagné
+    local winner = nil
+    local winnerName = ""
+    local loserName = ""
+    
+    if instance.rounds.player1Score >= instance.rounds.roundsToWin then
+        winner = instance.players[1]
+        winnerName = GetPlayerName(instance.players[1]) or "Joueur " .. instance.players[1]
+        loserName = GetPlayerName(instance.players[2]) or "Joueur " .. instance.players[2]
+    elseif instance.rounds.player2Score >= instance.rounds.roundsToWin then
+        winner = instance.players[2]
+        winnerName = GetPlayerName(instance.players[2]) or "Joueur " .. instance.players[2]
+        loserName = GetPlayerName(instance.players[1]) or "Joueur " .. instance.players[1]
+    end
+    
+    -- Envoyer les scores aux joueurs
+    for _, playerId in ipairs(instance.players) do
+        TriggerClientEvent('duel:roundResult', playerId, {
+            player1Score = instance.rounds.player1Score,
+            player2Score = instance.rounds.player2Score,
+            currentRound = instance.rounds.currentRound,
+            maxRounds = instance.rounds.maxRounds,
+            winner = winner,
+            winnerName = winnerName,
+            loserName = loserName,
+            killerPlayerId = killerPlayerId,
+            deadPlayerId = deadPlayerId
+        })
+    end
+    
+    -- Si quelqu'un a gagné, terminer le duel
+    if winner then
+        print("^2[DUEL] " .. winnerName .. " a gagné le duel " .. instance.rounds.player1Score .. "-" .. instance.rounds.player2Score .. "^7")
+        
+        -- Attendre 5 secondes puis supprimer l'instance
+        Citizen.SetTimeout(5000, function()
+            deleteInstance(instanceId)
+        end)
+    end
+end
+
+-- Event pour signaler une mort
+RegisterNetEvent('duel:playerDied')
+AddEventHandler('duel:playerDied', function(killerPlayerId)
+    local source = source
+    local deadPlayerName = GetPlayerName(source) or "Joueur " .. source
+    local killerPlayerName = GetPlayerName(killerPlayerId) or "Joueur " .. killerPlayerId
+    
+    print("^1[DUEL] " .. deadPlayerName .. " tué par " .. killerPlayerName .. "^7")
+    
+    -- Trouver l'instance du joueur mort
+    local instanceId, instance = getPlayerInstance(source)
+    if instanceId then
+        handlePlayerDeath(instanceId, source, killerPlayerId)
+    end
+end)
 
 -- Commande de test pour vérifier la communication client-serveur
 print("^2[DUEL] Enregistrement de la commande testduel^7")
