@@ -202,6 +202,52 @@ Citizen.CreateThread(function()
     end
 end)
 
+-- Fonction pour respawn le joueur
+function respawnPlayer()
+    if not inDuel or not currentArena then return end
+    
+    local arena = arenas[currentArena]
+    if not arena then return end
+    
+    local playerPed = PlayerPedId()
+    local playerId = PlayerId()
+    
+    -- Choisir un spawn aléatoire
+    local spawnIndex = math.random(1, #arena.spawns)
+    local spawnPos = arena.spawns[spawnIndex]
+    
+    -- Forcer la résurrection
+    NetworkResurrectLocalPlayer(spawnPos.x, spawnPos.y, spawnPos.z, 0.0, true, false)
+    
+    -- Attendre que le joueur soit respawné
+    Citizen.Wait(100)
+    
+    local newPed = PlayerPedId()
+    SetEntityCoords(newPed, spawnPos.x, spawnPos.y, spawnPos.z, false, false, false, true)
+    
+    -- Heal complet + kevlar max
+    SetEntityHealth(newPed, 200)
+    SetPedArmour(newPed, 100)
+    ClearPedBloodDamage(newPed)
+    
+    -- Redonner l'arme avec les bonnes munitions
+    local weapons = {
+        pistol = "WEAPON_PISTOL",
+        combat_pistol = "WEAPON_COMBATPISTOL",
+        heavy_pistol = "WEAPON_HEAVYPISTOL",
+        vintage_pistol = "WEAPON_VINTAGEPISTOL"
+    }
+    
+    RemoveAllPedWeapons(newPed, true)
+    local weaponHash = GetHashKey(weapons[selectedWeapon] or weapons.pistol)
+    GiveWeaponToPed(newPed, weaponHash, 250, false, true)
+    SetCurrentPedWeapon(newPed, weaponHash, true)
+    
+    isWaitingForRespawn = false
+    
+    print("^2[DUEL] Joueur respawné dans l'arène^7")
+end
+
 -- Fonction pour ouvrir le menu
 function openDuelMenu()
     print("^3[DUEL] Ouverture du menu^7")
@@ -233,6 +279,10 @@ end
 function quitDuel()
     print("^3[DUEL] Quitter le duel^7")
     
+    -- Enlever le kevlar
+    local playerPed = PlayerPedId()
+    SetPedArmour(playerPed, 0)
+    
     enablePlayerPermissions()
     
     TriggerServerEvent('duel:quitArena')
@@ -240,8 +290,7 @@ function quitDuel()
     inDuel = false
     currentInstanceId = nil
     currentArena = nil
-    
-    local playerPed = PlayerPedId()
+    isWaitingForRespawn = false
     
     RemoveAllPedWeapons(playerPed, true)
     
@@ -358,16 +407,24 @@ AddEventHandler('duel:instanceCreated', function(instanceId, weapon, map)
     inDuel = true
     currentInstanceId = instanceId
     currentArena = map
+    isWaitingForRespawn = false
     
     disablePlayerPermissions()
     
     local playerPed = PlayerPedId()
+    local playerId = PlayerId()
     local arena = arenas[map]
     
     if arena then
-        SetEntityCoords(playerPed, arena.center.x, arena.center.y, arena.center.z, false, false, false, true)
+        -- Spawn à une position spécifique selon l'ordre d'arrivée
+        local spawnPos = arena.spawns[1] -- Premier spawn par défaut
+        SetEntityCoords(playerPed, spawnPos.x, spawnPos.y, spawnPos.z, false, false, false, true)
         
-        print("^2[DUEL] Téléportation vers " .. arena.name .. " (" .. arena.center.x .. ", " .. arena.center.y .. ", " .. arena.center.z .. ")^7")
+        -- Heal complet + kevlar max à l'entrée
+        SetEntityHealth(playerPed, 200)
+        SetPedArmour(playerPed, 100)
+        
+        print("^2[DUEL] Téléportation vers " .. arena.name .. " avec heal et kevlar^7")
         
         local weapons = {
             pistol = "WEAPON_PISTOL",
@@ -399,7 +456,14 @@ AddEventHandler('duel:instanceDeleted', function()
     
     enablePlayerPermissions()
     
+    inDuel = false
+    currentInstanceId = nil
+    currentArena = nil
+    isWaitingForRespawn = false
+    
+    -- Enlever le kevlar à la sortie
     local playerPed = PlayerPedId()
+    SetPedArmour(playerPed, 0)
     
     RemoveAllPedWeapons(playerPed, true)
     
@@ -408,10 +472,6 @@ AddEventHandler('duel:instanceDeleted', function()
     else
         SetEntityCoords(playerPed, interactionPoint.x, interactionPoint.y, interactionPoint.z, false, false, false, true)
     end
-    
-    inDuel = false
-    currentInstanceId = nil
-    currentArena = nil
     
     TriggerEvent('chat:addMessage', {
         color = {255, 165, 0},
@@ -541,6 +601,58 @@ AddEventHandler('duel:opponentJoined', function(opponentName)
             end
         end)
     end)
+end)
+
+-- Event reçu pour les résultats de manche
+RegisterNetEvent('duel:roundResult')
+AddEventHandler('duel:roundResult', function(roundData)
+    print("^3[DUEL] Résultat de manche reçu^7")
+    
+    currentRounds = {
+        player1Score = roundData.player1Score,
+        player2Score = roundData.player2Score,
+        currentRound = roundData.currentRound,
+        maxRounds = roundData.maxRounds
+    }
+    
+    local playerId = PlayerId()
+    
+    -- Si c'est le gagnant de la manche, lui donner heal + kevlar
+    if roundData.killerPlayerId == playerId then
+        local playerPed = PlayerPedId()
+        SetEntityHealth(playerPed, 200)
+        SetPedArmour(playerPed, 100)
+        
+        TriggerEvent('chat:addMessage', {
+            color = {0, 255, 0},
+            multiline = true,
+            args = {"[DUEL]", "Manche gagnée ! Score: " .. roundData.player1Score .. "-" .. roundData.player2Score}
+        })
+    end
+    
+    -- Si quelqu'un a gagné le duel complet
+    if roundData.winner then
+        if roundData.winner == playerId then
+            TriggerEvent('chat:addMessage', {
+                color = {0, 255, 0},
+                multiline = true,
+                args = {"[DUEL]", "🏆 VICTOIRE ! Vous avez gagné le duel " .. roundData.player1Score .. "-" .. roundData.player2Score .. " !"}
+            })
+        else
+            TriggerEvent('chat:addMessage', {
+                color = {255, 0, 0},
+                multiline = true,
+                args = {"[DUEL]", "💀 DÉFAITE ! " .. roundData.winnerName .. " a gagné " .. roundData.player1Score .. "-" .. roundData.player2Score}
+            })
+        end
+        
+        -- Quitter automatiquement après 5 secondes
+        Citizen.SetTimeout(5000, function()
+            if inDuel then
+                quitDuel()
+            end
+        end)
+    end
 end)
 
 print("^2[DUEL] Client script complètement initialisé^7")
