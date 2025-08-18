@@ -1,4 +1,3 @@
-console.log('[DUEL] Script JS chargé');
 
 let selectedWeapon = null;
 let selectedMap = null;
@@ -8,7 +7,6 @@ let arenaListModal = null;
 // Écouter les messages du client Lua
 window.addEventListener('message', function(event) {
     const data = event.data;
-    console.log('[DUEL] Message reçu:', data);
     
     switch(data.type) {
         case 'openMenu':
@@ -24,13 +22,11 @@ window.addEventListener('message', function(event) {
 });
 
 function openMenu() {
-    console.log('[DUEL] Ouverture du menu');
     const app = document.getElementById('app');
     app.classList.remove('hidden');
 }
 
 function closeMenu() {
-    console.log('[DUEL] Fermeture du menu');
     const app = document.getElementById('app');
     app.classList.add('hidden');
     
@@ -87,7 +83,6 @@ function updateJoinButton() {
 
 // Event listeners
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('[DUEL] DOM chargé');
     
     // Sélection des armes
     const weaponCards = document.querySelectorAll('.weapon-card');
@@ -98,7 +93,6 @@ document.addEventListener('DOMContentLoaded', function() {
             // Ajouter la sélection à la carte cliquée
             this.classList.add('selected');
             selectedWeapon = this.dataset.weapon;
-            console.log('[DUEL] Arme sélectionnée:', selectedWeapon);
             updateJoinButton();
         });
     });
@@ -112,7 +106,6 @@ document.addEventListener('DOMContentLoaded', function() {
             // Ajouter la sélection à la carte cliquée
             this.classList.add('selected');
             selectedMap = this.dataset.map;
-            console.log('[DUEL] Map sélectionnée:', selectedMap);
             updateJoinButton();
         });
     });
@@ -121,10 +114,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const createBtn = document.getElementById('createBtn');
     if (createBtn) {
         createBtn.addEventListener('click', function() {
-            console.log('[DUEL] Bouton créer cliqué');
             
             if (selectedWeapon && selectedMap) {
-                console.log('[DUEL] Créer l\'arène avec:', selectedWeapon, selectedMap);
                 
                 const payload = {
                     weapon: selectedWeapon,
@@ -138,12 +129,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     },
                     body: JSON.stringify(payload)
                 }).then(response => {
-                    console.log('[DUEL] Réponse créer arène - Status:', response.status);
                     return response.text();
                 }).then(text => {
-                    console.log('[DUEL] Réponse texte:', text);
                 }).catch(err => {
-                    console.log('[DUEL] Erreur créer arène:', err);
                 });
             }
         });
@@ -153,7 +141,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const joinBtn = document.getElementById('joinBtn');
     if (joinBtn) {
         joinBtn.addEventListener('click', function() {
-            console.log('[DUEL] Bouton rejoindre cliqué');
             
             // Toujours permettre de voir la liste des arènes
             showArenaList();
@@ -164,7 +151,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const closeBtn = document.getElementById('closeBtn');
     if (closeBtn) {
         closeBtn.addEventListener('click', function() {
-            console.log('[DUEL] Bouton fermer cliqué');
             fetch(`https://duel_1v1/closeMenu`, {
                 method: 'POST',
                 headers: {
@@ -172,9 +158,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 body: JSON.stringify({})
             }).then(response => {
-                console.log('[DUEL] Menu fermé');
             }).catch(err => {
-                console.log('[DUEL] Erreur fermeture:', err);
             });
         });
     }
@@ -201,19 +185,17 @@ document.addEventListener('DOMContentLoaded', function() {
 // Fermer avec Échap
 document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') {
-        console.log('[DUEL] Échap pressé');
         fetch(`https://duel_1v1/closeMenu`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({})
-        }).catch(err => console.log('[DUEL] Erreur:', err));
+        }).catch(err => {});
     }
 });
 
 function updateAvailableArenas(arenas) {
-    console.log('[DUEL] Mise à jour des arènes disponibles:', arenas);
     availableArenas = arenas || [];
     
     // Ajouter les noms des créateurs pour l'affichage
@@ -227,7 +209,6 @@ function updateAvailableArenas(arenas) {
 }
 
 function showArenaList() {
-    console.log('[DUEL] Affichage de la liste des arènes');
     
     // Afficher TOUTES les arènes disponibles
     const compatibleArenas = availableArenas || [];
@@ -274,13 +255,11 @@ function showArenaList() {
 }
 
 function hideArenaList() {
-    console.log('[DUEL] Masquage de la liste des arènes');
     const modal = document.getElementById('arenaListModal');
     modal.classList.add('hidden');
 }
 
 function joinSpecificArena(arenaId, arenaWeapon) {
-    console.log('[DUEL] Rejoindre l\'arène spécifique:', arenaId);
     
     hideArenaList();
     
@@ -296,11 +275,8 @@ function joinSpecificArena(arenaId, arenaWeapon) {
         },
         body: JSON.stringify(payload)
     }).then(response => {
-        console.log('[DUEL] Réponse rejoindre arène spécifique - Status:', response.status);
         return response.text();
     }).then(text => {
-        console.log('[DUEL] Réponse texte:', text);
     }).catch(err => {
-        console.log('[DUEL] Erreur rejoindre arène spécifique:', err);
     });
 }

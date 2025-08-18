@@ -1,4 +1,3 @@
-print("^2[DUEL] Client script chargé^7")
 
 local isMenuOpen = false
 local inDuel = false
@@ -60,7 +59,6 @@ local arenas = {
 
 -- Thread principal pour le marker
 Citizen.CreateThread(function()
-    print("^2[DUEL] Thread marker démarré^7")
     while true do
         local playerPed = PlayerPedId()
         local playerCoords = GetEntityCoords(playerPed)
@@ -83,7 +81,6 @@ Citizen.CreateThread(function()
             EndTextCommandDisplayHelp(0, false, false, -1)
             
             if IsControlJustPressed(1, 38) and not isMenuOpen then
-                print("^3[DUEL] Touche E pressée^7")
                 openDuelMenu()
             end
         end
@@ -119,7 +116,6 @@ Citizen.CreateThread(function()
                 
                 -- Si le joueur dépasse la limite
                 if distance > arena.radius then
-                    print("^1[DUEL] Joueur hors limite, téléportation au centre^7")
                     SetEntityCoords(playerPed, arena.center.x, arena.center.y, arena.center.z, false, false, false, true)
                     
                     TriggerEvent('chat:addMessage', {
@@ -177,7 +173,6 @@ Citizen.CreateThread(function()
     while true do
         if inDuel and not isWaitingForRespawn then
             if IsControlJustPressed(1, 38) then
-                print("^3[DUEL] Touche E pressée pour quitter le duel^7")
                 quitDuel()
             end
         end
@@ -193,14 +188,11 @@ Citizen.CreateThread(function()
             
             -- Détecter la mort (santé <= 0 ou IsPedDeadOrDying)
             if (IsPedDeadOrDying(playerPed, true) or GetEntityHealth(playerPed) <= 100) and not isWaitingForRespawn then
-                print("^1[DUEL] Joueur mort détecté - Santé: " .. GetEntityHealth(playerPed) .. "^7")
                 isWaitingForRespawn = true
                 
                 -- Trouver qui a tué le joueur
                 local killer = GetPedSourceOfDeath(playerPed)
                 local killerPlayerId = nil
-                
-                print("^1[DUEL] Killer entity: " .. tostring(killer) .. "^7")
                 
                 if killer ~= 0 and killer ~= playerPed then
                     -- Chercher le joueur correspondant au killer
@@ -209,22 +201,14 @@ Citizen.CreateThread(function()
                             local otherPed = GetPlayerPed(i)
                             if otherPed == killer then
                                 killerPlayerId = i
-                                print("^2[DUEL] Killer trouvé: Joueur " .. i .. "^7")
                                 break
                             end
                         end
                     end
-                else
-                    print("^1[DUEL] Pas de killer valide trouvé^7")
                 end
                 
                 -- Signaler la mort au serveur
-                print("^1[DUEL] Envoi de la mort au serveur - Killer: " .. tostring(killerPlayerId) .. "^7")
-                print("^1[DUEL] Mon ID: " .. PlayerId() .. ", Instance: " .. tostring(currentInstanceId) .. "^7")
                 TriggerServerEvent('duel:playerDied', killerPlayerId)
-                
-                -- Vérifier que l'event est bien envoyé
-                print("^2[DUEL] Event 'duel:playerDied' envoyé avec killerPlayerId: " .. tostring(killerPlayerId) .. "^7")
                 
                 -- Attendre 2-3 secondes (temps de ragdoll)
                 Citizen.SetTimeout(2500, function()
@@ -262,6 +246,29 @@ function respawnPlayer()
     local newPed = PlayerPedId()
     SetEntityCoords(newPed, spawnPos.x, spawnPos.y, spawnPos.z, false, false, false, true)
     
+    -- Fonction pour vérifier si une variation de ped existe
+    local function isPedComponentVariationValid(ped, componentId, drawableId, textureId)
+        local maxDrawable = GetNumberOfPedDrawableVariations(ped, componentId) - 1
+        local maxTexture = GetNumberOfPedTextureVariations(ped, componentId, drawableId) - 1
+        return drawableId >= 0 and drawableId <= maxDrawable and textureId >= 0 and textureId <= maxTexture
+    end
+    
+    -- Appliquer les variations de base seulement si elles existent
+    local variations = {
+        {component = 1, drawable = 0, texture = 0}, -- Masque
+        {component = 3, drawable = 0, texture = 0}, -- Torse
+        {component = 4, drawable = 0, texture = 0}, -- Jambes
+        {component = 6, drawable = 0, texture = 0}, -- Chaussures
+        {component = 8, drawable = 0, texture = 0}, -- Accessoires
+        {component = 11, drawable = 0, texture = 0} -- Veste
+    }
+    
+    for _, variation in ipairs(variations) do
+        if isPedComponentVariationValid(newPed, variation.component, variation.drawable, variation.texture) then
+            SetPedComponentVariation(newPed, variation.component, variation.drawable, variation.texture, 0)
+        end
+    end
+    
     -- Heal complet + kevlar max
     SetEntityHealth(newPed, 200)
     SetPedArmour(newPed, 100)
@@ -282,12 +289,10 @@ function respawnPlayer()
     
     isWaitingForRespawn = false
     
-    print("^2[DUEL] Joueur respawné dans l'arène^7")
 end
 
 -- Fonction pour ouvrir le menu
 function openDuelMenu()
-    print("^3[DUEL] Ouverture du menu^7")
     local playerPed = PlayerPedId()
     originalCoords = GetEntityCoords(playerPed)
     
@@ -303,7 +308,6 @@ end
 
 -- Fonction pour fermer le menu
 function closeDuelMenu()
-    print("^3[DUEL] Fermeture du menu^7")
     isMenuOpen = false
     SetNuiFocus(false, false)
     
@@ -314,7 +318,6 @@ end
 
 -- Fonction pour quitter le duel
 function quitDuel()
-    print("^3[DUEL] Quitter le duel^7")
     
     -- Enlever le kevlar
     local playerPed = PlayerPedId()
@@ -346,7 +349,6 @@ end
 
 -- Fonction pour désactiver les permissions du joueur
 function disablePlayerPermissions()
-    print("^1[DUEL] Désactivation des permissions^7")
     
     Citizen.CreateThread(function()
         while inDuel do
@@ -371,53 +373,41 @@ end
 
 -- Fonction pour réactiver les permissions du joueur
 function enablePlayerPermissions()
-    print("^2[DUEL] Réactivation des permissions^7")
 end
 
 -- Callbacks NUI
 RegisterNUICallback('closeMenu', function(data, cb)
-    print("^2[DUEL] Callback closeMenu reçu^7")
     closeDuelMenu()
     cb('ok')
 end)
 
 RegisterNUICallback('createArena', function(data, cb)
-    print("^2[DUEL] ========== CALLBACK CREATEARENA ==========^7")
-    print("^3[DUEL] Données reçues: weapon=" .. tostring(data.weapon) .. ", map=" .. tostring(data.map) .. "^7")
     
     if not data.weapon or not data.map then
-        print("^1[DUEL] Données manquantes^7")
         cb('error')
         return
     end
     
     selectedWeapon = data.weapon
     
-    print("^2[DUEL] Fermeture du menu^7")
     closeDuelMenu()
     
-    print("^2[DUEL] Envoi vers le serveur pour créer l'arène^7")
     TriggerServerEvent('duel:createArena', data.weapon, data.map)
     
     cb('ok')
 end)
 
 RegisterNUICallback('joinSpecificArena', function(data, cb)
-    print("^2[DUEL] ========== CALLBACK JOIN SPECIFIC ARENA ==========^7")
-    print("^3[DUEL] Données reçues: arenaId=" .. tostring(data.arenaId) .. ", weapon=" .. tostring(data.weapon) .. "^7")
     
     if not data.arenaId or not data.weapon then
-        print("^1[DUEL] Données manquantes^7")
         cb('error')
         return
     end
     
     selectedWeapon = data.weapon
     
-    print("^2[DUEL] Fermeture du menu^7")
     closeDuelMenu()
     
-    print("^2[DUEL] Envoi vers le serveur pour rejoindre l'arène spécifique^7")
     TriggerServerEvent('duel:joinSpecificArena', data.arenaId, data.weapon)
     
     cb('ok')
@@ -428,7 +418,6 @@ Citizen.CreateThread(function()
     while true do
         if isMenuOpen then
             if IsControlJustPressed(1, 322) then
-                print("^3[DUEL] ESC pressé^7")
                 closeDuelMenu()
             end
         end
@@ -439,7 +428,6 @@ end)
 -- Event reçu quand une instance est créée
 RegisterNetEvent('duel:instanceCreated')
 AddEventHandler('duel:instanceCreated', function(instanceId, weapon, map)
-    print("^2[DUEL] Instance " .. tostring(instanceId) .. " créée pour arène '" .. tostring(map) .. "'^7")
     
     inDuel = true
     currentInstanceId = instanceId
@@ -461,8 +449,6 @@ AddEventHandler('duel:instanceCreated', function(instanceId, weapon, map)
         SetEntityHealth(playerPed, 200)
         SetPedArmour(playerPed, 100)
         
-        print("^2[DUEL] Téléportation vers " .. arena.name .. " avec heal et kevlar^7")
-        
         local weapons = {
             pistol = "WEAPON_PISTOL",
             combat_pistol = "WEAPON_COMBATPISTOL",
@@ -481,15 +467,17 @@ AddEventHandler('duel:instanceCreated', function(instanceId, weapon, map)
             args = {"[DUEL]", "Vous êtes dans l'arène " .. arena.name .. " ! En attente d'un adversaire..."}
         })
     else
-        print("^1[DUEL] Arène '" .. tostring(map) .. "' non trouvée dans la liste des arènes^7")
-        print("^1[DUEL] Arènes disponibles: aeroport, dans l'eau, foret, hippie^7")
+        TriggerEvent('chat:addMessage', {
+            color = {255, 0, 0},
+            multiline = true,
+            args = {"[DUEL]", "Erreur: Arène non trouvée"}
+        })
     end
 end)
 
 -- Event reçu quand une instance est supprimée
 RegisterNetEvent('duel:instanceDeleted')
 AddEventHandler('duel:instanceDeleted', function()
-    print("^1[DUEL] Instance supprimée^7")
     
     enablePlayerPermissions()
     
@@ -520,7 +508,6 @@ end)
 -- Event reçu pour mettre à jour la liste des arènes disponibles
 RegisterNetEvent('duel:updateAvailableArenas')
 AddEventHandler('duel:updateAvailableArenas', function(arenas)
-    print("^3[DUEL] Mise à jour des arènes disponibles: " .. #arenas .. " arène(s)^7")
     
     SendNUIMessage({
         type = "updateArenas",
@@ -531,7 +518,6 @@ end)
 -- Event reçu quand un adversaire rejoint
 RegisterNetEvent('duel:opponentJoined')
 AddEventHandler('duel:opponentJoined', function(opponentName)
-    print("^2[DUEL] Adversaire rejoint: " .. tostring(opponentName) .. "^7")
     
     -- Activer l'affichage du compteur de manches
     currentRounds.showRoundCounter = true
@@ -646,14 +632,6 @@ end)
 -- Event reçu pour les résultats de manche
 RegisterNetEvent('duel:roundResult')
 AddEventHandler('duel:roundResult', function(roundData)
-    print("^3[DUEL] === RÉSULTAT DE MANCHE CLIENT ===^7")
-    print("^3[DUEL] Manche: " .. roundData.currentRound .. "/" .. roundData.maxRounds .. "^7")
-    print("^3[DUEL] Score Joueur 1: " .. roundData.player1Score .. "^7")
-    print("^3[DUEL] Score Joueur 2: " .. roundData.player2Score .. "^7")
-    print("^3[DUEL] Mon ID: " .. PlayerId() .. "^7")
-    print("^3[DUEL] Joueur 1 ID: " .. roundData.player1Id .. "^7")
-    print("^3[DUEL] Joueur 2 ID: " .. roundData.player2Id .. "^7")
-    print("^3[DUEL] Tueur: " .. roundData.killerPlayerId .. "^7")
     
     currentRounds = {
         player1Score = roundData.player1Score,
@@ -673,7 +651,6 @@ AddEventHandler('duel:roundResult', function(roundData)
         if inDuel then
             SetEntityHealth(playerPed, 200)
             SetPedArmour(playerPed, 100)
-            print("^2[DUEL] Heal + Kevlar appliqué au joueur " .. playerId .. "^7")
         end
     end)
     
@@ -752,5 +729,3 @@ AddEventHandler('duel:roundResult', function(roundData)
         end)
     end
 end)
-
-print("^2[DUEL] Client script complètement initialisé^7")
