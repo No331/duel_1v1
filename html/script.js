@@ -81,7 +81,7 @@ function updateJoinButton() {
         createBtn.disabled = true;
     }
     
-    // Activer le bouton rejoindre s'il y a une arme sélectionnée
+    // Le bouton rejoindre est toujours actif
     joinBtn.disabled = false;
 }
 
@@ -155,11 +155,8 @@ document.addEventListener('DOMContentLoaded', function() {
         joinBtn.addEventListener('click', function() {
             console.log('[DUEL] Bouton rejoindre cliqué');
             
-            if (selectedWeapon) {
-                showArenaList();
-            } else {
-                console.log('[DUEL] Impossible de rejoindre - Arme non sélectionnée');
-            }
+            // Toujours permettre de voir la liste des arènes
+            showArenaList();
         });
     }
     
@@ -232,7 +229,7 @@ function updateAvailableArenas(arenas) {
 function showArenaList() {
     console.log('[DUEL] Affichage de la liste des arènes');
     
-    // Afficher TOUTES les arènes disponibles sans aucun filtre
+    // Afficher TOUTES les arènes disponibles
     const compatibleArenas = availableArenas || [];
     
     const arenaList = document.getElementById('arenaList');

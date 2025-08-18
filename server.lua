@@ -111,14 +111,20 @@ function handlePlayerDeath(instanceId, deadPlayerId, killerPlayerId)
     local instance = instances[instanceId]
     if not instance then return end
     
-    -- Incrémenter d'abord le round
+    -- Incrémenter le round
     instance.rounds.currentRound = instance.rounds.currentRound + 1
     
-    -- Incrémenter le score du tueur
+    -- Déterminer qui est le joueur 1 et qui est le joueur 2
+    local player1Id = instance.players[1]
+    local player2Id = instance.players[2]
+    
+    -- Incrémenter le score du tueur selon son index dans la liste
     if killerPlayerId == instance.players[1] then
         instance.rounds.player1Score = instance.rounds.player1Score + 1
+        print("^2[DUEL] Joueur 1 (" .. killerPlayerId .. ") marque un point. Score: " .. instance.rounds.player1Score .. "-" .. instance.rounds.player2Score .. "^7")
     elseif killerPlayerId == instance.players[2] then
         instance.rounds.player2Score = instance.rounds.player2Score + 1
+        print("^2[DUEL] Joueur 2 (" .. killerPlayerId .. ") marque un point. Score: " .. instance.rounds.player1Score .. "-" .. instance.rounds.player2Score .. "^7")
     end
     
     -- Vérifier si quelqu'un a gagné
@@ -133,28 +139,35 @@ function handlePlayerDeath(instanceId, deadPlayerId, killerPlayerId)
         winnerName = GetPlayerName(instance.players[1]) or "Joueur " .. instance.players[1]
         loserName = GetPlayerName(instance.players[2]) or "Joueur " .. instance.players[2]
         duelFinished = true
+        print("^2[DUEL] Joueur 1 gagne le duel !^7")
     elseif instance.rounds.player2Score >= ROUNDS_TO_WIN then
         winner = instance.players[2]
         winnerName = GetPlayerName(instance.players[2]) or "Joueur " .. instance.players[2]
         loserName = GetPlayerName(instance.players[1]) or "Joueur " .. instance.players[1]
         duelFinished = true
+        print("^2[DUEL] Joueur 2 gagne le duel !^7")
     elseif instance.rounds.currentRound >= MAX_ROUNDS then
         -- Si on a fait 5 manches, celui avec le plus de points gagne
         if instance.rounds.player1Score > instance.rounds.player2Score then
             winner = instance.players[1]
             winnerName = GetPlayerName(instance.players[1]) or "Joueur " .. instance.players[1]
             loserName = GetPlayerName(instance.players[2]) or "Joueur " .. instance.players[2]
+            print("^2[DUEL] Joueur 1 gagne aux points !^7")
         elseif instance.rounds.player2Score > instance.rounds.player1Score then
             winner = instance.players[2]
             winnerName = GetPlayerName(instance.players[2]) or "Joueur " .. instance.players[2]
             loserName = GetPlayerName(instance.players[1]) or "Joueur " .. instance.players[1]
+            print("^2[DUEL] Joueur 2 gagne aux points !^7")
         else
             -- Égalité - pas de gagnant
             winner = nil
             winnerName = "Égalité"
+            print("^3[DUEL] Duel terminé en égalité !^7")
         end
         duelFinished = true
     end
+    
+    print("^3[DUEL] Envoi des scores - Manche " .. instance.rounds.currentRound .. "/" .. MAX_ROUNDS .. " - Score: " .. instance.rounds.player1Score .. "-" .. instance.rounds.player2Score .. "^7")
     
     -- Envoyer les scores aux joueurs
     for _, playerId in ipairs(instance.players) do
@@ -168,7 +181,9 @@ function handlePlayerDeath(instanceId, deadPlayerId, killerPlayerId)
             loserName = loserName,
             killerPlayerId = killerPlayerId,
             deadPlayerId = deadPlayerId,
-            duelFinished = duelFinished
+            duelFinished = duelFinished,
+            player1Id = player1Id,
+            player2Id = player2Id
         })
     end
     

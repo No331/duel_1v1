@@ -626,6 +626,7 @@ end)
 RegisterNetEvent('duel:roundResult')
 AddEventHandler('duel:roundResult', function(roundData)
     print("^3[DUEL] Résultat de manche reçu^7")
+    print("^3[DUEL] Données reçues: Manche " .. roundData.currentRound .. "/" .. roundData.maxRounds .. " - Score: " .. roundData.player1Score .. "-" .. roundData.player2Score .. "^7")
     
     currentRounds = {
         player1Score = roundData.player1Score,
@@ -641,19 +642,30 @@ AddEventHandler('duel:roundResult', function(roundData)
     -- HEAL + KEVLAR pour TOUS LES JOUEURS à la fin de chaque manche
     SetEntityHealth(playerPed, 200)
     SetPedArmour(playerPed, 100)
+    print("^2[DUEL] Heal + Kevlar appliqué au joueur " .. playerId .. "^7")
+    
+    -- Déterminer le score à afficher selon la position du joueur
+    local myScore, opponentScore
+    if playerId == roundData.player1Id then
+        myScore = roundData.player1Score
+        opponentScore = roundData.player2Score
+    else
+        myScore = roundData.player2Score
+        opponentScore = roundData.player1Score
+    end
     
     -- Message différent selon si on a gagné ou perdu la manche
     if roundData.killerPlayerId == playerId then
         TriggerEvent('chat:addMessage', {
             color = {0, 255, 0},
             multiline = true,
-            args = {"[DUEL]", "🏆 Manche " .. roundData.currentRound .. " gagnée ! Score: " .. roundData.player1Score .. "-" .. roundData.player2Score}
+            args = {"[DUEL]", "🏆 Manche " .. roundData.currentRound .. " gagnée ! Score: " .. myScore .. "-" .. opponentScore}
         })
     else
         TriggerEvent('chat:addMessage', {
             color = {255, 165, 0},
             multiline = true,
-            args = {"[DUEL]", "💀 Manche " .. roundData.currentRound .. " perdue ! Score: " .. roundData.player1Score .. "-" .. roundData.player2Score}
+            args = {"[DUEL]", "💀 Manche " .. roundData.currentRound .. " perdue ! Score: " .. myScore .. "-" .. opponentScore}
         })
     end
     
@@ -665,19 +677,19 @@ AddEventHandler('duel:roundResult', function(roundData)
             TriggerEvent('chat:addMessage', {
                 color = {0, 255, 0},
                 multiline = true,
-                args = {"[DUEL]", "🏆 VICTOIRE FINALE ! Vous avez gagné le duel " .. roundData.player1Score .. "-" .. roundData.player2Score .. " !"}
+                args = {"[DUEL]", "🏆 VICTOIRE FINALE ! Vous avez gagné le duel " .. myScore .. "-" .. opponentScore .. " !"}
             })
         elseif roundData.winner and roundData.winner ~= playerId then
             TriggerEvent('chat:addMessage', {
                 color = {255, 0, 0},
                 multiline = true,
-                args = {"[DUEL]", "💀 DÉFAITE FINALE ! " .. roundData.winnerName .. " a gagné " .. roundData.player1Score .. "-" .. roundData.player2Score}
+                args = {"[DUEL]", "💀 DÉFAITE FINALE ! " .. roundData.winnerName .. " a gagné " .. opponentScore .. "-" .. myScore}
             })
         else
             TriggerEvent('chat:addMessage', {
                 color = {255, 255, 0},
                 multiline = true,
-                args = {"[DUEL]", "🤝 ÉGALITÉ ! Duel terminé " .. roundData.player1Score .. "-" .. roundData.player2Score}
+                args = {"[DUEL]", "🤝 ÉGALITÉ ! Duel terminé " .. myScore .. "-" .. opponentScore}
             })
         end
         
