@@ -1,8 +1,5 @@
 print("^2[DUEL] Server script chargé^7")
 
--- Debug pour vérifier l'enregistrement des events
-print("^2[DUEL] Enregistrement de l'event duel:playerDied^7")
-
 -- Système d'instances
 local instances = {}
 local nextInstanceId = 1
@@ -111,6 +108,11 @@ end
 
 -- Fonction pour gérer la mort d'un joueur
 function handlePlayerDeath(instanceId, deadPlayerId, killerPlayerId)
+    print("^2[DUEL] ========== HANDLE PLAYER DEATH ==========^7")
+    print("^2[DUEL] Instance ID: " .. tostring(instanceId) .. "^7")
+    print("^2[DUEL] Dead Player: " .. tostring(deadPlayerId) .. "^7")
+    print("^2[DUEL] Killer Player: " .. tostring(killerPlayerId) .. "^7")
+    
     local instance = instances[instanceId]
     if not instance then 
         print("^1[DUEL] ERREUR: Instance " .. instanceId .. " non trouvée^7")
@@ -237,11 +239,14 @@ function handlePlayerDeath(instanceId, deadPlayerId, killerPlayerId)
             deleteInstance(instanceId)
         end)
     end
+    
+    print("^2[DUEL] ========== FIN HANDLE PLAYER DEATH ==========^7")
 end
 
+-- ENREGISTREMENT DES EVENTS
+print("^2[DUEL] === DÉBUT ENREGISTREMENT EVENTS ===^7")
+
 -- Event pour signaler une mort
-print("^2[DUEL] === ENREGISTREMENT EVENT PLAYERDIED ===^7")
-RegisterNetEvent('duel:playerDied')
 AddEventHandler('duel:playerDied', function(killerPlayerId)
     local source = source
     local deadPlayerName = GetPlayerName(source) or "Joueur " .. source
@@ -267,10 +272,11 @@ AddEventHandler('duel:playerDied', function(killerPlayerId)
     end
     print("^2[DUEL] ========== FIN EVENT PLAYERDIED ==========^7")
 end)
-print("^2[DUEL] Event duel:playerDied enregistré avec succès^7")
+
+RegisterNetEvent('duel:playerDied')
+print("^2[DUEL] Event duel:playerDied enregistré^7")
 
 -- Commande de test pour vérifier la communication client-serveur
-print("^2[DUEL] Enregistrement de la commande testduel^7")
 RegisterCommand('testduel', function(source, args, rawCommand)
     local playerName = GetPlayerName(source) or "Joueur " .. source
     print("^2[DUEL] Commande testduel reçue de " .. playerName .. " (ID: " .. source .. ")^7")
@@ -285,8 +291,6 @@ RegisterCommand('testduel', function(source, args, rawCommand)
 end, false)
 
 -- Event pour rejoindre une arène (créer une instance)
-print("^2[DUEL] Enregistrement de l'event duel:createArena^7")
-RegisterNetEvent('duel:createArena')
 AddEventHandler('duel:createArena', function(weapon, map)
     local source = source
     local playerName = GetPlayerName(source) or "Joueur " .. source
@@ -332,11 +336,11 @@ AddEventHandler('duel:createArena', function(weapon, map)
     
     print("^2[DUEL] ========== FIN EVENT CREATEARENA ==========^7")
 end)
-print("^2[DUEL] Event duel:createArena enregistré avec succès^7")
+
+RegisterNetEvent('duel:createArena')
+print("^2[DUEL] Event duel:createArena enregistré^7")
 
 -- Event pour rejoindre une arène existante
-print("^2[DUEL] Enregistrement de l'event duel:joinArena^7")
-RegisterNetEvent('duel:joinArena')
 AddEventHandler('duel:joinArena', function(weapon)
     local source = source
     local playerName = GetPlayerName(source) or "Joueur " .. source
@@ -395,11 +399,11 @@ AddEventHandler('duel:joinArena', function(weapon)
     
     print("^2[DUEL] ========== FIN EVENT JOINARENA ==========^7")
 end)
-print("^2[DUEL] Event duel:joinArena enregistré avec succès^7")
+
+RegisterNetEvent('duel:joinArena')
+print("^2[DUEL] Event duel:joinArena enregistré^7")
 
 -- Event pour rejoindre une arène spécifique
-print("^2[DUEL] Enregistrement de l'event duel:joinSpecificArena^7")
-RegisterNetEvent('duel:joinSpecificArena')
 AddEventHandler('duel:joinSpecificArena', function(arenaId, weapon)
     local source = source
     local playerName = GetPlayerName(source) or "Joueur " .. source
@@ -472,10 +476,11 @@ AddEventHandler('duel:joinSpecificArena', function(arenaId, weapon)
     
     print("^2[DUEL] ========== FIN EVENT JOIN SPECIFIC ARENA ==========^7")
 end)
-print("^2[DUEL] Event duel:joinSpecificArena enregistré avec succès^7")
+
+RegisterNetEvent('duel:joinSpecificArena')
+print("^2[DUEL] Event duel:joinSpecificArena enregistré^7")
 
 -- Event pour obtenir les arènes disponibles
-RegisterNetEvent('duel:getAvailableArenas')
 AddEventHandler('duel:getAvailableArenas', function()
     local source = source
     local availableArenas = getAvailableArenas()
@@ -483,8 +488,10 @@ AddEventHandler('duel:getAvailableArenas', function()
     TriggerClientEvent('duel:updateAvailableArenas', source, availableArenas)
 end)
 
+RegisterNetEvent('duel:getAvailableArenas')
+print("^2[DUEL] Event duel:getAvailableArenas enregistré^7")
+
 -- Event pour quitter une arène (supprimer l'instance)
-RegisterNetEvent('duel:quitArena')
 AddEventHandler('duel:quitArena', function()
     local source = source
     local playerName = GetPlayerName(source) or "Joueur " .. source
@@ -501,6 +508,11 @@ AddEventHandler('duel:quitArena', function()
         print("^1[DUEL] Aucune instance trouvée pour le joueur " .. source .. "^7")
     end
 end)
+
+RegisterNetEvent('duel:quitArena')
+print("^2[DUEL] Event duel:quitArena enregistré^7")
+
+print("^2[DUEL] === FIN ENREGISTREMENT EVENTS ===^7")
 
 -- Nettoyer les instances quand un joueur se déconnecte
 AddEventHandler('playerDropped', function(reason)
