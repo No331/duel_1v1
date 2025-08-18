@@ -232,28 +232,8 @@ function respawnPlayer()
     local newPed = PlayerPedId()
     SetEntityCoords(newPed, spawnPos.x, spawnPos.y, spawnPos.z, false, false, false, true)
     
-    -- Fonction pour vérifier si une variation de ped existe
-    local function isPedComponentVariationValid(ped, componentId, drawableId, textureId)
-        local maxDrawable = GetNumberOfPedDrawableVariations(ped, componentId) - 1
-        local maxTexture = GetNumberOfPedTextureVariations(ped, componentId, drawableId) - 1
-        return drawableId >= 0 and drawableId <= maxDrawable and textureId >= 0 and textureId <= maxTexture
-    end
-    
-    -- Appliquer les variations de base seulement si elles existent
-    local variations = {
-        {component = 1, drawable = 0, texture = 0}, -- Masque
-        {component = 3, drawable = 0, texture = 0}, -- Torse
-        {component = 4, drawable = 0, texture = 0}, -- Jambes
-        {component = 6, drawable = 0, texture = 0}, -- Chaussures
-        {component = 8, drawable = 0, texture = 0}, -- Accessoires
-        {component = 11, drawable = 0, texture = 0} -- Veste
-    }
-    
-    for _, variation in ipairs(variations) do
-        if isPedComponentVariationValid(newPed, variation.component, variation.drawable, variation.texture) then
-            SetPedComponentVariation(newPed, variation.component, variation.drawable, variation.texture, 0)
-        end
-    end
+    -- Ne pas appliquer de variations de ped pour éviter les erreurs
+    -- Le joueur garde son apparence par défaut
     
     -- Heal complet + kevlar max
     SetEntityHealth(newPed, 200)
@@ -274,7 +254,6 @@ function respawnPlayer()
     SetCurrentPedWeapon(newPed, weaponHash, true)
     
     isWaitingForRespawn = false
-    
 end
 
 -- Fonction pour ouvrir le menu
