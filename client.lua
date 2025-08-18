@@ -222,6 +222,9 @@ Citizen.CreateThread(function()
                 print("^1[DUEL] Envoi de la mort au serveur - Killer: " .. tostring(killerPlayerId) .. "^7")
                 TriggerServerEvent('duel:playerDied', killerPlayerId)
                 
+                -- Vérifier que l'event est bien envoyé
+                print("^2[DUEL] Event 'duel:playerDied' envoyé avec killerPlayerId: " .. tostring(killerPlayerId) .. "^7")
+                
                 -- Attendre 2-3 secondes (temps de ragdoll)
                 Citizen.SetTimeout(2500, function()
                     if inDuel then

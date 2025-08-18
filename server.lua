@@ -109,17 +109,20 @@ end
 -- Fonction pour gérer la mort d'un joueur
 function handlePlayerDeath(instanceId, deadPlayerId, killerPlayerId)
     local instance = instances[instanceId]
-    if not instance then return end
+    if not instance then 
+        print("^1[DUEL] ERREUR: Instance " .. instanceId .. " non trouvée^7")
+        return 
+    end
     
     -- Vérifier qu'on a bien 2 joueurs
     if #instance.players < 2 then
-        print("^1[DUEL] Pas assez de joueurs dans l'instance^7")
+        print("^1[DUEL] ERREUR: Pas assez de joueurs dans l'instance (" .. #instance.players .. "/2)^7")
         return
     end
     
     -- Vérifier qu'on a un tueur valide et différent du mort
     if not killerPlayerId or killerPlayerId == deadPlayerId or killerPlayerId == 0 then
-        print("^1[DUEL] Mort sans tueur valide, pas de point marqué^7")
+        print("^1[DUEL] ERREUR: Mort sans tueur valide, pas de point marqué^7")
         print("^1[DUEL] KillerPlayerId: " .. tostring(killerPlayerId) .. ", DeadPlayerId: " .. tostring(deadPlayerId) .. "^7")
         return
     end
@@ -128,7 +131,7 @@ function handlePlayerDeath(instanceId, deadPlayerId, killerPlayerId)
     local player1Id = instance.players[1]
     local player2Id = instance.players[2]
     
-    print("^3[DUEL] === ANALYSE DE LA MANCHE ===^7")
+    print("^2[DUEL] === ANALYSE DE LA MANCHE ===^7")
     print("^3[DUEL] Joueur 1 (créateur): " .. player1Id .. "^7")
     print("^3[DUEL] Joueur 2: " .. player2Id .. "^7")
     print("^3[DUEL] Tueur: " .. killerPlayerId .. "^7")
@@ -136,21 +139,22 @@ function handlePlayerDeath(instanceId, deadPlayerId, killerPlayerId)
     
     -- Vérifier que le tueur est bien un des 2 joueurs du duel
     if killerPlayerId ~= player1Id and killerPlayerId ~= player2Id then
-        print("^1[DUEL] Le tueur n'est pas un joueur du duel^7")
+        print("^1[DUEL] ERREUR: Le tueur (" .. killerPlayerId .. ") n'est pas un joueur du duel^7")
         return
     end
     
     -- Incrémenter le round
     instance.rounds.currentRound = instance.rounds.currentRound + 1
+    print("^2[DUEL] NOUVELLE MANCHE: " .. instance.rounds.currentRound .. "/" .. MAX_ROUNDS .. "^7")
     
     -- Incrémenter le score du tueur selon son index dans la liste
     if killerPlayerId == player1Id then
         instance.rounds.player1Score = instance.rounds.player1Score + 1
-        print("^2[DUEL] JOUEUR 1 (" .. GetPlayerName(player1Id) .. ") gagne la manche " .. instance.rounds.currentRound .. " !^7")
+        print("^2[DUEL] ✅ JOUEUR 1 (" .. GetPlayerName(player1Id) .. ") gagne la manche " .. instance.rounds.currentRound .. " !^7")
         print("^2[DUEL] Score actuel: " .. instance.rounds.player1Score .. "-" .. instance.rounds.player2Score .. "^7")
     elseif killerPlayerId == player2Id then
         instance.rounds.player2Score = instance.rounds.player2Score + 1
-        print("^2[DUEL] JOUEUR 2 (" .. GetPlayerName(player2Id) .. ") gagne la manche " .. instance.rounds.currentRound .. " !^7")
+        print("^2[DUEL] ✅ JOUEUR 2 (" .. GetPlayerName(player2Id) .. ") gagne la manche " .. instance.rounds.currentRound .. " !^7")
         print("^2[DUEL] Score actuel: " .. instance.rounds.player1Score .. "-" .. instance.rounds.player2Score .. "^7")
     else
         print("^1[DUEL] ERREUR: Le tueur n'est ni joueur 1 ni joueur 2^7")
@@ -239,12 +243,15 @@ AddEventHandler('duel:playerDied', function(killerPlayerId)
     local deadPlayerName = GetPlayerName(source) or "Joueur " .. source
     local killerPlayerName = GetPlayerName(killerPlayerId) or "Joueur " .. killerPlayerId
     
-    print("^1[DUEL] " .. deadPlayerName .. " tué par " .. killerPlayerName .. "^7")
+    print("^1[DUEL] EVENT RECU: " .. deadPlayerName .. " (ID:" .. source .. ") tué par " .. killerPlayerName .. " (ID:" .. tostring(killerPlayerId) .. ")^7")
     
     -- Trouver l'instance du joueur mort
     local instanceId, instance = getPlayerInstance(source)
-    if instanceId then
+    if instanceId and instance then
+        print("^2[DUEL] Instance trouvée: " .. instanceId .. " avec " .. #instance.players .. " joueurs^7")
         handlePlayerDeath(instanceId, source, killerPlayerId)
+    else
+        print("^1[DUEL] ERREUR: Aucune instance trouvée pour le joueur mort " .. source .. "^7")
     end
 end)
 
